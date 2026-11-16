@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">航空券予約対戦ゲームの画面構成案</title>
+  <desc id="desc">左80パーセントが架空PCのブラウザ。右20パーセントの上半分に条件メモ、下半分にパスポート。記載した人物、地名、航空会社、価格、番号は説明用の架空データ。</desc>
+  <defs>
+    <style>
+      text { font-family: 'Yu Gothic', 'Meiryo', sans-serif; fill: #213047; }
+      .small { font-size: 14px; }
+      .body { font-size: 17px; }
+      .label { font-size: 15px; fill: #61718a; }
+      .heading { font-size: 22px; font-weight: 700; }
+      .white { fill: white; }
+      .mono { font-family: Consolas, monospace; }
+    </style>
+  </defs>
+  <!-- 左 1280 / 1600 = 80% 右 320 / 1600 = 20% -->
+  <rect width="1280" height="900" fill="#eff3f8"/>
+  <rect width="1280" height="44" fill="#223047"/>
+  <rect x="14" y="9" width="270" height="35" rx="7" fill="#f5f7fa"/>
+  <text x="30" y="32" class="small">航空券比較サイト　×</text>
+  <rect x="291" y="9" width="230" height="35" rx="7" fill="#42516a"/>
+  <text x="307" y="32" class="small white">予約サイト3　×</text>
+  <rect x="529" y="9" width="230" height="35" rx="7" fill="#42516a"/>
+  <text x="545" y="32" class="small white">航空券比較サイト　×</text>
+  <text x="780" y="32" class="heading white">＋</text>
+  <rect y="44" width="1280" height="44" fill="#dbe3ed"/>
+  <text x="24" y="72" class="body">←　→　↻</text>
+  <rect x="151" y="52" width="1099" height="28" rx="6" fill="white"/>
+  <text x="171" y="72" class="small mono">https://compare.flight-game.invalid/search</text>
+  <rect y="88" width="1280" height="66" fill="white"/>
+  <text x="30" y="129" class="heading">航空券比較サイト</text>
+  <text x="864" y="128" class="body">ROUND 1 / 4</text>
+  <text x="1073" y="128" class="heading">残り 02:16</text>
+  <text x="30" y="193" class="label">出発地</text>
+  <text x="303" y="193" class="label">目的地</text>
+  <text x="576" y="193" class="label">出発日</text>
+  <text x="823" y="193" class="label">手荷物</text>
+  <rect x="30" y="205" width="251" height="48" rx="5" fill="white" stroke="#c8d2df"/>
+  <rect x="303" y="205" width="251" height="48" rx="5" fill="white" stroke="#c8d2df"/>
+  <rect x="576" y="205" width="225" height="48" rx="5" fill="white" stroke="#c8d2df"/>
+  <rect x="823" y="205" width="199" height="48" rx="5" fill="white" stroke="#c8d2df"/>
+  <text x="46" y="236" class="body">羽之浦 HNU</text>
+  <text x="319" y="236" class="body">星汐 HSO</text>
+  <text x="592" y="236" class="body">2027 / 05 / 18</text>
+  <text x="839" y="236" class="body">受託 20kg</text>
+  <rect x="1044" y="205" width="206" height="48" rx="5" fill="#2862bc"/>
+  <text x="1114" y="236" class="body white">再検索</text>
+  <text x="30" y="287" class="body">経由地：指定なし　／　片道　／　大人1名</text>
+  <text x="30" y="336" class="heading">検索完了　3件の候補</text>
+  <text x="30" y="365" class="label">条件メモと詳細を照合し、予約サイト別の価格を確認してください。</text>
+  <g>
+    <rect x="30" y="388" width="1220" height="135" rx="8" fill="white" stroke="#c8d2df"/>
+    <text x="52" y="420" class="heading">08:10 羽之浦　→　12:30 星汐</text>
+    <text x="52" y="453" class="body">航空会社A　／　直行便　／　受託手荷物20kg込み</text>
+    <text x="52" y="487" class="label">運航：航空会社A　・　到着ターミナル1　・　変更不可</text>
+    <text x="963" y="429" class="heading">¥18,000〜</text>
+    <rect x="954" y="452" width="270" height="47" rx="5" fill="#2862bc"/>
+    <text x="984" y="483" class="body white">予約サイト別の価格を見る</text>
+  </g>
+  <g>
+    <rect x="30" y="540" width="1220" height="135" rx="8" fill="white" stroke="#c8d2df"/>
+    <text x="52" y="572" class="heading">09:25 羽之浦　→　15:40 星汐</text>
+    <text x="52" y="605" class="body">航空会社B　／　1回乗継　／　受託手荷物20kg込み</text>
+    <text x="52" y="639" class="label">運航：航空会社C　・　到着ターミナル2　・　変更可</text>
+    <text x="963" y="581" class="heading">¥16,000〜</text>
+    <rect x="954" y="604" width="270" height="47" rx="5" fill="#2862bc"/>
+    <text x="984" y="635" class="body white">予約サイト別の価格を見る</text>
+  </g>
+  <g>
+    <rect x="30" y="692" width="1220" height="135" rx="8" fill="white" stroke="#c8d2df"/>
+    <text x="52" y="724" class="heading">11:05 羽之浦　→　16:50 星汐</text>
+    <text x="52" y="757" class="body">航空会社D　／　直行便　／　受託手荷物20kg込み</text>
+    <text x="52" y="791" class="label">運航：航空会社D　・　到着ターミナル1　・　変更可</text>
+    <text x="963" y="733" class="heading">¥23,000〜</text>
+    <rect x="954" y="756" width="270" height="47" rx="5" fill="#2862bc"/>
+    <text x="984" y="787" class="body white">予約サイト別の価格を見る</text>
+  </g>
+  <text x="30" y="864" class="small">配置図の価格・ラウンド時間・データは説明用。NPCにも同じ市場と時間が適用される。</text>
+  <!-- 条件メモ 右上 20% x 50% -->
+  <rect x="1280" width="320" height="450" fill="#fff7d9" stroke="#c4b991"/>
+  <text x="1300" y="35" class="heading">条件メモ</text>
+  <text x="1300" y="66" class="label">今回の依頼</text>
+  <text x="1300" y="103" class="body">羽之浦 → 星汐</text>
+  <text x="1300" y="137" class="body">5月18日に出発</text>
+  <text x="1300" y="171" class="body">17:00までに到着</text>
+  <text x="1300" y="205" class="body">受託手荷物20kgが必要</text>
+  <text x="1300" y="239" class="body">運航会社Cの便は不可</text>
+  <text x="1300" y="273" class="body">到着ターミナル1を利用</text>
+  <text x="1300" y="333" class="label">検索条件にない項目も、</text>
+  <text x="1300" y="357" class="label">候補の詳細で確認する。</text>
+  <text x="1300" y="417" class="small">右上：画面幅20% × 高さ50%</text>
+  <!-- パスポート 右下 20% x 50% -->
+  <rect x="1280" y="450" width="320" height="450" fill="#e9f0ea" stroke="#a8b9ac"/>
+  <text x="1300" y="487" class="heading">仮想パスポート</text>
+  <text x="1300" y="515" class="label">NOVA REPUBLIC　NVA</text>
+  <rect x="1300" y="535" width="73" height="85" rx="4" fill="#c9d8ce"/>
+  <circle cx="1336" cy="561" r="15" fill="#7f9987"/>
+  <path d="M1312 608 Q1312 579 1336 579 Q1360 579 1360 608" fill="#7f9987"/>
+  <text x="1386" y="550" class="label">SURNAME</text>
+  <text x="1386" y="574" class="body mono">HOSHINO</text>
+  <text x="1386" y="600" class="label">GIVEN NAME</text>
+  <text x="1386" y="624" class="body mono">RINA</text>
+  <text x="1300" y="658" class="label">生年月日</text>
+  <text x="1300" y="683" class="body mono">1998 / 03 / 21</text>
+  <text x="1300" y="716" class="label">パスポート番号</text>
+  <text x="1300" y="741" class="body mono">PX0417286</text>
+  <text x="1300" y="774" class="label">有効期限</text>
+  <text x="1300" y="799" class="body mono">2032 / 09 / 30</text>
+  <rect x="1300" y="818" width="280" height="40" rx="5" fill="#d1dfd5"/>
+  <text x="1315" y="844" class="small">この領域を押すと仮想カードに切替</text>
+  <text x="1300" y="884" class="small">右下：画面幅20% × 高さ50%</text>
+</svg>
