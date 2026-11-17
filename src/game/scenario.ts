@@ -51,8 +51,11 @@ export function findScenarioProblems(scenario: RoundScenario, participantCount: 
     if (site1.fareQuota < 1 || site1.fareQuota > flight.seats) {
       problems.push(`便 ${flight.id}：サイト1の販売枠が1〜座席数の範囲にない`);
     }
-    // ラウンド最高値は、買える可能性のあるどの価格よりも低くならない。
-    if (Math.max(site1.price, site2.price, site3.maxPrice) > scenario.maxPrice) {
+    // ラウンド最高値は、条件を満たす便のどの価格よりも低くならない。
+    if (
+      findTripViolations(flight, scenario.requirements).length === 0 &&
+      Math.max(site1.price, site2.price, site3.maxPrice) > scenario.maxPrice
+    ) {
       problems.push(`便 ${flight.id}：ラウンド最高値を超える価格がある`);
     }
   }

@@ -70,6 +70,7 @@ export default function App() {
       participantId={PLAYER_ID}
       participants={match.participants}
       timeoutPenalty={prototypeSettings.timeoutPenalty}
+      penaltySettings={prototypeSettings.penalty}
       roundNumber={match.roundIndex + 1}
       roundCount={matchRounds.length}
       finishedRounds={match.finished}

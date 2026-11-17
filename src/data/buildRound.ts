@@ -1,10 +1,12 @@
 import { distanceKm } from '../game/airports';
 import { createFlightOffers, highestPrice } from '../game/pricing';
+import { findTripViolations } from '../game/requirements';
 import { prototypeSettings } from '../game/settings';
 import type {
   Airline,
   Airport,
   Flight,
+  FlightOffers,
   PassportData,
   PaymentCardData,
   RoundScenario,
@@ -71,6 +73,18 @@ export const AIRLINES: Airline[] = [
 /** 便ごとの価格の決め方。fareLevel は便ごとの高い・安いを表す倍率、fareQuota はサイト1の販売枠。 */
 export type FareDefinition = { flightId: string; fareLevel: number; fareQuota: number };
 
+/** 条件を満たす便の価格のうち、最も高い金額（ラウンド最高値）。 */
+export function validMaxPrice(
+  flights: Flight[],
+  offers: FlightOffers[],
+  requirements: TripRequirements,
+): number {
+  const valid = new Set(
+    flights.filter((f) => findTripViolations(f, requirements).length === 0).map((f) => f.id),
+  );
+  return highestPrice(offers.filter((offer) => valid.has(offer.flightId)));
+}
+
 export function buildRound(definition: {
   id: string;
   passport: PassportData;
@@ -94,7 +108,7 @@ export function buildRound(definition: {
     airlines: AIRLINES,
     flights: definition.flights,
     offers,
-    maxPrice: highestPrice(offers),
+    maxPrice: validMaxPrice(definition.flights, offers, definition.requirements),
   };
 }
 

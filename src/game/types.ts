@@ -137,7 +137,10 @@ export type RoundScenario = {
   airlines: Airline[];
   flights: Flight[];
   offers: FlightOffers[];
-  /** ラウンド最高値。締切までに予約できなかった人が購入した扱いになる金額。 */
+  /**
+   * ラウンド最高値。条件を満たす便のうち、どのサイトの価格よりも高くない最高額。
+   * 締切までに予約できなかった人は、この金額で購入した扱いになる。減点の割合の基準にも使う。
+   */
   maxPrice: Yen;
 };
 

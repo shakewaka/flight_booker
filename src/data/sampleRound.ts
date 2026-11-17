@@ -1,7 +1,8 @@
 import { distanceKm } from '../game/airports';
-import { createFlightOffers, highestPrice } from '../game/pricing';
+import { createFlightOffers } from '../game/pricing';
+import { validMaxPrice } from './buildRound';
 import { prototypeSettings } from '../game/settings';
-import type { Airport, Flight, RoundScenario } from '../game/types';
+import type { Airport, Flight, RoundScenario, TripRequirements } from '../game/types';
 
 // 1ラウンド分の出題データ。企画書「14 ラウンド例」の条件を、東京（羽田）発・台北（松山）行きの国際線に置き換えた。
 // 空港と都市は実在の名前を使う（docs/decisions.md）。人物・国・航空会社・番号は架空。
@@ -164,6 +165,18 @@ const offers = fares.map((fare) => {
   return createFlightOffers({ ...fare, distanceKm: km }, prototypeSettings.pricing);
 });
 
+/** 条件メモの内容。ラウンド最高値の計算にも使う。 */
+const requirements: TripRequirements = {
+  originCode: 'HND',
+  destinationCode: 'TSA',
+  departureDate: '2027-05-18',
+  departAfter: '09:00',
+  arriveBy: '17:00',
+  checkedBaggageKg: 20,
+  excludedOperatingAirlineIds: ['C'],
+  arrivalTerminal: 1,
+};
+
 export const sampleRound: RoundScenario = {
   id: 'sample-round',
   passport: {
@@ -181,16 +194,7 @@ export const sampleRound: RoundScenario = {
     expiry: '08/31',
     securityCode: '417',
   },
-  requirements: {
-    originCode: 'HND',
-    destinationCode: 'TSA',
-    departureDate: '2027-05-18',
-    departAfter: '09:00',
-    arriveBy: '17:00',
-    checkedBaggageKg: 20,
-    excludedOperatingAirlineIds: ['C'],
-    arrivalTerminal: 1,
-  },
+  requirements,
   airports,
   airlines: [
     { id: 'A', name: '航空会社A' },
@@ -200,5 +204,5 @@ export const sampleRound: RoundScenario = {
   ],
   flights,
   offers,
-  maxPrice: highestPrice(offers),
+  maxPrice: validMaxPrice(flights, offers, requirements),
 };

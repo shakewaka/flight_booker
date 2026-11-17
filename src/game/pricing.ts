@@ -41,7 +41,7 @@ export function createFlightOffers(fare: FareInput, pricing: PricingSettings): F
   };
 }
 
-/** 出題に含まれる価格のうち、最も高い金額。ラウンド最高値に使う。 */
+/** 販売条件に含まれる価格のうち、最も高い金額。条件を満たす便だけを渡すと、ラウンド最高値になる。 */
 export function highestPrice(offers: FlightOffers[]): Yen {
   return Math.max(
     ...offers.map((offer) => Math.max(offer.site1.price, offer.site2.price, offer.site3.maxPrice)),

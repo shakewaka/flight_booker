@@ -62,7 +62,7 @@ describe('findScenarioProblems', () => {
     ]);
   });
 
-  it('ラウンド最高値を1円でも超える価格があると、問題として返す', () => {
+  it('条件を満たす便に、ラウンド最高値を1円でも超える価格があると、問題として返す', () => {
     const { site3 } = offerOf(FLIGHT);
     const scenario = withOffer(FLIGHT, { site3: { ...site3, maxPrice: sampleRound.maxPrice + 1 } });
     expect(findScenarioProblems(scenario, participantCount)).toEqual([

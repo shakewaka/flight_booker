@@ -4,6 +4,7 @@ import { computeStandings } from '../../game/match';
 import { describeRequirements } from '../../game/requirements';
 import { computeRoundResults, type RoundResultRow } from '../../game/results';
 import { getRoundPhase, type RoundTimer } from '../../game/roundClock';
+import type { PenaltySettings } from '../../game/settings';
 import type { Participant, RoundScenario } from '../../game/types';
 import { GameBrowser } from '../browser/GameBrowser';
 import { TabletFrame } from '../browser/TabletFrame';
@@ -26,6 +27,8 @@ type WorkspaceProps = {
   participants: Participant[];
   /** 時間切れの集計金額に加える額。 */
   timeoutPenalty: number;
+  /** 減点の割合。 */
+  penaltySettings: PenaltySettings;
   roundNumber: number;
   roundCount: number;
   /** 終了したラウンドの結果。総合順位に使う。 */
@@ -45,6 +48,7 @@ export function Workspace({
   participantId,
   participants,
   timeoutPenalty,
+  penaltySettings,
   roundNumber,
   roundCount,
   finishedRounds,
@@ -73,11 +77,19 @@ export function Workspace({
 
   // 締切後の市場は変わらないので、毎回計算しても同じ結果になる。
   function closedView() {
-    const rows = computeRoundResults({ participants, market, entries, scenario, timeoutPenalty });
+    const rows = computeRoundResults({
+      participants,
+      market,
+      entries,
+      scenario,
+      timeoutPenalty,
+      penaltySettings,
+    });
     if (!showStandings) {
       return (
         <RoundResults
           rows={rows}
+          timeoutAmount={scenario.maxPrice + timeoutPenalty}
           playerId={participantId}
           roundNumber={roundNumber}
           roundCount={roundCount}

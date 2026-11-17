@@ -157,3 +157,17 @@
   outline: 3px solid #ffd54a;
   outline-offset: 3px;
 }
+
+.results__penalty {
+  color: #a2520b;
+}
+
+.results__amount {
+  font-weight: 800;
+}
+
+.results__item-amount {
+  margin-left: 0.6em;
+  color: #a2520b;
+  font-weight: 700;
+}

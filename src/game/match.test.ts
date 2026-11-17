@@ -22,6 +22,8 @@ function round(values: Record<string, [number, number]>): RoundResultRow[] {
   return people.map((participant) => ({
     participant,
     status: 'booked',
+    purchasePrice: values[participant.id][0],
+    penalty: null,
     amount: values[participant.id][0],
     timeMs: values[participant.id][1],
     site: 'site1',

@@ -6,6 +6,8 @@ import { computeRoundResults, rankRows } from './results';
 import { createRoundTimer } from './roundClock';
 import type { Participant, SiteId } from './types';
 
+const penaltySettings = { violationRate: 0.2, identityMistakeRate: 0.1, paymentMistakeRate: 0.05 };
+
 const timer = createRoundTimer(0, { startCountdownMs: 10_000, roundTimeLimitMs: 300_000 });
 const START = timer.startAt;
 
@@ -109,6 +111,7 @@ describe('computeRoundResults', () => {
       entries: [],
       scenario: sampleRound,
       timeoutPenalty: 0,
+      penaltySettings,
     });
     const npc1 = rows.find((r) => r.participant.id === 'npc-1');
     const timeout = rows.find((r) => r.participant.id === 'npc-2');
@@ -133,13 +136,14 @@ describe('computeRoundResults', () => {
       entries: [],
       scenario: sampleRound,
       timeoutPenalty: 5_000,
+      penaltySettings,
     });
     expect(rows[0].amount).toBe(sampleRound.maxPrice + 5_000);
   });
 
-  it('入力ミスと条件違反があっても、購入額と予約タイムはそのまま記録し、順位にも反映しない', () => {
+  it('購入額に減点を足して集計し、購入額・減点・違反の内容は別々に残す', () => {
     let market = createMarket(sampleRound, timer);
-    // 人間は条件違反の07:05発を、入力ミスありで安く早く買う。NPCは条件どおりの便を後で高く買う。
+    // 人間は条件違反の07:05発（出発が早い）を、パスポート番号の入力ミスありで安く早く買う。
     market = buy(market, 'player', 'site1', 'HND-TSA-0705', 40_000);
     market = buy(market, 'npc-1', 'site1', 'HND-TSA-0910', 90_000);
     const entries = [entryOf('HND-TSA-0705', { passportNumber: 'PX0417268' })];
@@ -149,21 +153,97 @@ describe('computeRoundResults', () => {
       entries,
       scenario: sampleRound,
       timeoutPenalty: 0,
+      penaltySettings,
     });
+    const player = rows.find((r) => r.participant.id === 'player');
 
-    expect(rows[0]).toEqual(
+    // 最高値 67,000円 の 20%（条件違反）＋ 10%（本人確認の入力ミス） = 13,400 ＋ 6,700 円
+    expect(player).toEqual(
       expect.objectContaining({
-        rank: 1,
-        amount: 26_000,
+        status: 'booked',
+        purchasePrice: 26_000,
+        amount: 26_000 + 13_400 + 6_700,
         timeMs: 40_000,
         tripViolations: ['departureTime'],
         inputMistakes: [{ field: 'passportNumber', entered: 'PX0417268', expected: 'PX0417286' }],
       }),
     );
+    expect(player?.penalty?.total).toBe(20_100);
+    // 減点で 46,100円 になり、条件どおりに 31,000円 で買ったNPCより下になる。
+    expect(rows.map((r) => r.participant.id)).toEqual(['npc-1', 'player', 'npc-2']);
+  });
+
+  it('カードの入力ミスは、本人確認の入力ミスより軽い', () => {
+    let market = createMarket(sampleRound, timer);
+    market = buy(market, 'player', 'site1', 'HND-TSA-0910', 40_000);
+    const entry = {
+      ...entryOf('HND-TSA-0910'),
+      payment: { ...entryOf('HND-TSA-0910').payment, securityCode: '471' },
+    };
+    const rows = computeRoundResults({
+      participants: people,
+      market,
+      entries: [entry],
+      scenario: sampleRound,
+      timeoutPenalty: 0,
+      penaltySettings,
+    });
+    // 67,000円 の 5% = 3,350円 → 100円単位で 3,400円（丸めは四捨五入）
+    expect(rows[0].amount).toBe(31_000 + 3_400);
+  });
+
+  it('減点がいくつ重なっても、時間切れの金額より悪くはならない', () => {
+    let market = createMarket(sampleRound, timer);
+    market = buy(market, 'player', 'site1', 'HND-TSA-0705', 40_000);
+    const entries = [
+      entryOf('HND-TSA-0705', {
+        surname: 'X',
+        givenName: 'X',
+        birthDate: 'X',
+        nationality: 'X',
+        passportNumber: 'X',
+        passportExpiry: 'X',
+      }),
+    ];
+    const rows = computeRoundResults({
+      participants: people,
+      market,
+      entries,
+      scenario: sampleRound,
+      timeoutPenalty: 0,
+      penaltySettings,
+    });
+    const player = rows.find((r) => r.participant.id === 'player');
+    expect(player?.penalty?.total).toBeGreaterThan(sampleRound.maxPrice - 26_000);
+    expect(player?.amount).toBe(sampleRound.maxPrice);
+    // 時間は実際の予約タイムのまま。時間切れの人（300秒）より上の順位になる。
+    expect(player?.timeMs).toBe(40_000);
     expect(rows[0].participant.id).toBe('player');
   });
 
-  it('NPCは入力ミスなしとして扱い、条件違反は買った便から判定する', () => {
+  it('出発地・目的地・出発日が違う予約は、旅行が成り立たないので時間切れと同じ扱い', () => {
+    let market = createMarket(sampleRound, timer);
+    market = buy(market, 'player', 'site1', 'NRT-TPE-0950', 20_000);
+    const rows = computeRoundResults({
+      participants: people,
+      market,
+      entries: [entryOf('NRT-TPE-0950')],
+      scenario: sampleRound,
+      timeoutPenalty: 0,
+      penaltySettings,
+    });
+    expect(rows.find((r) => r.participant.id === 'player')).toEqual(
+      expect.objectContaining({
+        status: 'void',
+        purchasePrice: 25_500,
+        amount: sampleRound.maxPrice,
+        timeMs: 300_000,
+        tripViolations: ['origin', 'destination'],
+      }),
+    );
+  });
+
+  it('入力内容の記録がないNPCは入力ミスなしとし、条件違反は買った便から判定して減点する', () => {
     let market = createMarket(sampleRound, timer);
     market = buy(market, 'npc-1', 'site1', 'HND-TSA-1620', 50_000);
     const rows = computeRoundResults({
@@ -172,9 +252,14 @@ describe('computeRoundResults', () => {
       entries: [],
       scenario: sampleRound,
       timeoutPenalty: 0,
+      penaltySettings,
     });
     expect(rows.find((r) => r.participant.id === 'npc-1')).toEqual(
-      expect.objectContaining({ inputMistakes: [], tripViolations: ['arrivalTime'] }),
+      expect.objectContaining({
+        inputMistakes: [],
+        tripViolations: ['arrivalTime'],
+        amount: 27_000 + 13_400,
+      }),
     );
   });
 
@@ -187,6 +272,7 @@ describe('computeRoundResults', () => {
       entries: [],
       scenario: sampleRound,
       timeoutPenalty: 0,
+      penaltySettings,
     });
     expect(rows.map((r) => [r.participant.id, r.rank])).toEqual([
       ['npc-1', 1],

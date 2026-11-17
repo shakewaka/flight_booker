@@ -41,6 +41,16 @@ export type Site3Settings = {
   fullPriceViewRate: number;
 };
 
+/** 仮：減点の割合（案C）。ラウンド最高値に対する、違反1つあたりの割合。 */
+export type PenaltySettings = {
+  /** 条件違反（出発時刻、到着期限、運航会社、到着ターミナル、手荷物）。 */
+  violationRate: number;
+  /** 本人確認の情報の入力ミス（姓、名、生年月日、国籍、パスポート番号、有効期限）。 */
+  identityMistakeRate: number;
+  /** カードの情報の入力ミス（名義、番号、有効期限、確認コード）。 */
+  paymentMistakeRate: number;
+};
+
 export type GameSettings = {
   /** 1試合のラウンド数。決定事項。 */
   roundCount: number;
@@ -57,6 +67,7 @@ export type GameSettings = {
   pricing: PricingSettings;
   npc: NpcSettings;
   site3: Site3Settings;
+  penalty: PenaltySettings;
 };
 
 export const prototypeSettings: GameSettings = {
@@ -86,4 +97,5 @@ export const prototypeSettings: GameSettings = {
   },
   // 10人中5人が閲覧すると上限の価格になる。
   site3: { fullPriceViewRate: 0.5 },
+  penalty: { violationRate: 0.2, identityMistakeRate: 0.1, paymentMistakeRate: 0.05 },
 };
