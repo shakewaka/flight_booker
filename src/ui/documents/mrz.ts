@@ -1,4 +1,4 @@
-import type { PassportData } from '../../data/sampleRound';
+import type { PassportData } from '../../game/types';
 
 // パスポート下部の機械読取欄（MRZ：機械が読むための2行の文字列）を、表示用に組み立てる。
 // 見た目を実物に近づけるための飾りで、予約の入力や判定には使わない。

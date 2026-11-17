@@ -1,4 +1,4 @@
-import type { PassportData } from '../../data/sampleRound';
+import type { PassportData } from '../../game/types';
 import { Emblem } from './Emblem';
 import { buildMrzLines } from './mrz';
 

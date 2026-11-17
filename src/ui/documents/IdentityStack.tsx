@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { PassportData, PaymentCardData } from '../../data/sampleRound';
+import type { PassportData, PaymentCardData } from '../../game/types';
 import { Passport, PassportCover } from './Passport';
 import { PaymentCard, PaymentCardBack } from './PaymentCard';
 import './identity.css';

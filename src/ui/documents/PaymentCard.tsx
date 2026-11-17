@@ -1,4 +1,4 @@
-import type { PaymentCardData } from '../../data/sampleRound';
+import type { PaymentCardData } from '../../game/types';
 
 type PaymentCardProps = {
   card: PaymentCardData;

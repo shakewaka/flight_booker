@@ -1,8 +1,8 @@
-import type { TripMemoData } from '../../data/sampleRound';
+import type { TripMemo } from '../../game/types';
 import './memo.css';
 
 type MemoPadProps = {
-  memo: TripMemoData;
+  memo: TripMemo;
 };
 
 /** 右上の条件メモ。机に置いた、罫線入りのメモ帳。 */
