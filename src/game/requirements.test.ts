@@ -21,6 +21,7 @@ const validFlight: Flight = {
   destinationCode: 'TSA',
   departureDate: '2027-05-18',
   departureTime: '08:10',
+  arrivalDate: '2027-05-18',
   arrivalTime: '12:30',
   arrivalTerminal: 1,
   stops: 0,
@@ -50,6 +51,11 @@ describe('findTripViolations', () => {
     expect(findTripViolations({ ...validFlight, arrivalTime: '17:01' }, requirements)).toEqual([
       'arrivalTime',
     ]);
+  });
+
+  it('翌日に着く便は、到着の時刻が期限より早くても到着時刻の違反になる', () => {
+    const overnight = { ...validFlight, arrivalDate: '2027-05-19', arrivalTime: '08:00' };
+    expect(findTripViolations(overnight, requirements)).toEqual(['arrivalTime']);
   });
 
   it('販売する会社が不可の会社でも、運航する会社が別なら違反にしない', () => {

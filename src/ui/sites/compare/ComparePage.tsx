@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import {
   findQueryError,
   getSearchProgress,
+  queryHash,
   searchDurationMs,
   searchFlights,
   type SearchQuery,
@@ -11,6 +12,7 @@ import { formatJapaneseDate } from '../../../game/dates';
 import type { RoundScenario } from '../../../game/types';
 import { formatRemaining } from '../../format';
 import { FlightCard } from './FlightCard';
+import { createProgressCurve, progressAt, type ProgressCurve } from './progressCurve';
 import './compare.css';
 
 type ComparePageProps = {
@@ -26,6 +28,8 @@ type RunningSearch = {
   query: SearchQuery;
   startedAt: number;
   durationMs: number;
+  /** 進捗バーの動き方。検索条件から決まる。 */
+  curve: ProgressCurve;
 };
 
 const BAGGAGE_OPTIONS = [0, 15, 20, 23];
@@ -41,6 +45,7 @@ const EMPTY_QUERY: SearchQuery = {
   originCode: '',
   destinationCode: '',
   departureDate: '',
+  arrivalDate: '',
   nonstopOnly: false,
   checkedBaggageKg: 0,
 };
@@ -63,6 +68,7 @@ export function ComparePage({ scenario, now, deadlineAt, searchRange }: CompareP
       query: draft,
       startedAt: performance.now(),
       durationMs: searchDurationMs(draft, searchRange),
+      curve: createProgressCurve(queryHash(draft)),
     });
   };
 
@@ -114,6 +120,14 @@ export function ComparePage({ scenario, now, deadlineAt, searchRange }: CompareP
           />
         </label>
         <label className="compare-form__field">
+          <span>到着日</span>
+          <input
+            type="date"
+            value={draft.arrivalDate}
+            onChange={(event) => update({ arrivalDate: event.target.value })}
+          />
+        </label>
+        <label className="compare-form__field">
           <span>受託手荷物</span>
           <select
             value={draft.checkedBaggageKg}
@@ -136,10 +150,10 @@ export function ComparePage({ scenario, now, deadlineAt, searchRange }: CompareP
             <option value="nonstop">直行便のみ</option>
           </select>
         </label>
+        <p className="compare-form__fixed">片道 ／ 大人1名</p>
         <button type="submit" className="compare-form__submit">
           {search ? '再検索' : '検索'}
         </button>
-        <p className="compare-form__fixed">片道 ／ 大人1名</p>
         {formError && (
           <p className="compare-form__error" role="alert">
             {formError}
@@ -171,12 +185,13 @@ function SearchOutcome({ scenario, search, now, deadlineAt }: SearchOutcomeProps
   const progress = getSearchProgress(search.startedAt, search.durationMs, now);
 
   if (progress.kind === 'searching') {
-    const stage = SEARCH_STAGES.find((candidate) => progress.ratio < candidate.until);
+    const shown = progressAt(search.curve, progress.ratio);
+    const stage = SEARCH_STAGES.find((candidate) => shown < candidate.until);
     return (
       <div className="compare-progress" role="status">
         <p className="compare-progress__text">{stage?.text ?? SEARCH_STAGES[0].text}…</p>
         <div className="compare-progress__bar">
-          <span style={{ width: `${Math.round(progress.ratio * 100)}%` }} />
+          <span style={{ width: `${(shown * 100).toFixed(1)}%` }} />
         </div>
         <p className="compare-progress__note">候補の一覧は、検索が終わってから表示されます。</p>
       </div>
@@ -190,7 +205,8 @@ function SearchOutcome({ scenario, search, now, deadlineAt }: SearchOutcomeProps
   const cityOf = (code: string) => airportName(scenario.airports, code);
   const searchedWith = [
     `${cityOf(query.originCode)} → ${cityOf(query.destinationCode)}`,
-    formatJapaneseDate(query.departureDate),
+    `${formatJapaneseDate(query.departureDate)}発`,
+    `${formatJapaneseDate(query.arrivalDate)}着`,
     query.checkedBaggageKg > 0 ? `手荷物${query.checkedBaggageKg}kg` : '手荷物なし',
     query.nonstopOnly ? '直行便のみ' : '経由地の指定なし',
   ].join(' ／ ');

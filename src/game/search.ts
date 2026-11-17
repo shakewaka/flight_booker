@@ -7,6 +7,8 @@ export type SearchQuery = {
   originCode: string;
   destinationCode: string;
   departureDate: string;
+  /** 到着日（目的地の現地の日付）。 */
+  arrivalDate: string;
   /** true なら直行便だけを探す。false は経由地の指定なし。 */
   nonstopOnly: boolean;
   /** 必要な受託手荷物の重さ。0は手荷物なし。 */
@@ -24,7 +26,9 @@ export type SearchResult = {
 export function findQueryError(query: SearchQuery): string | null {
   if (!query.originCode || !query.destinationCode) return '出発地と目的地を選んでください';
   if (query.originCode === query.destinationCode) return '出発地と目的地が同じです';
-  if (!query.departureDate) return '出発日を選んでください';
+  if (!query.departureDate || !query.arrivalDate) return '出発日と到着日を選んでください';
+  // YYYY-MM-DD 同士は、文字列のまま比べても日付の前後と一致する。
+  if (query.arrivalDate < query.departureDate) return '到着日が出発日より前になっています';
   return null;
 }
 
@@ -36,6 +40,7 @@ export function searchFlights(scenario: RoundScenario, query: SearchQuery): Sear
     if (flight.originCode !== query.originCode) continue;
     if (flight.destinationCode !== query.destinationCode) continue;
     if (flight.departureDate !== query.departureDate) continue;
+    if (flight.arrivalDate !== query.arrivalDate) continue;
     if (query.nonstopOnly && flight.stops > 0) continue;
     if (flight.checkedBaggageKg < query.checkedBaggageKg) continue;
 
@@ -52,14 +57,15 @@ export function searchFlights(scenario: RoundScenario, query: SearchQuery): Sear
 }
 
 /**
- * 検索にかかる時間。同じ検索条件なら、誰が検索しても同じ時間になる。
- * 実世界の通信のような、ランダムな待ち時間は使わない。
+ * 検索条件から作る数。同じ条件なら必ず同じ値になる。
+ * 検索時間や進捗バーの動きを、ランダムにせず条件ごとに決めるために使う。
  */
-export function searchDurationMs(query: SearchQuery, range: { min: number; max: number }): number {
+export function queryHash(query: SearchQuery): number {
   const key = [
     query.originCode,
     query.destinationCode,
     query.departureDate,
+    query.arrivalDate,
     query.nonstopOnly ? 'nonstop' : 'any',
     query.checkedBaggageKg,
   ].join('|');
@@ -70,9 +76,16 @@ export function searchDurationMs(query: SearchQuery, range: { min: number; max: 
     hash ^= key.charCodeAt(i);
     hash = Math.imul(hash, 0x01000193) >>> 0;
   }
+  return hash;
+}
 
-  const seconds = Math.floor((range.max - range.min) / 1000);
-  return range.min + (hash % (seconds + 1)) * 1000;
+/**
+ * 検索にかかる時間。0.1秒単位で、同じ検索条件なら誰が検索しても同じ時間になる。
+ * 実世界の通信のような、ランダムな待ち時間は使わない。
+ */
+export function searchDurationMs(query: SearchQuery, range: { min: number; max: number }): number {
+  const steps = Math.floor((range.max - range.min) / 100);
+  return range.min + (queryHash(query) % (steps + 1)) * 100;
 }
 
 export type SearchProgress =

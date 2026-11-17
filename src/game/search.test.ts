@@ -7,16 +7,19 @@ import {
   searchFlights,
   type SearchQuery,
 } from './search';
+import type { RoundScenario } from './types';
 
 const query: SearchQuery = {
   originCode: 'HND',
   destinationCode: 'TSA',
   departureDate: '2027-05-18',
+  arrivalDate: '2027-05-18',
   nonstopOnly: false,
   checkedBaggageKg: 20,
 };
 
-const ids = (q: SearchQuery) => searchFlights(sampleRound, q).map((result) => result.flight.id);
+const ids = (q: SearchQuery, scenario: RoundScenario = sampleRound) =>
+  searchFlights(scenario, q).map((result) => result.flight.id);
 
 describe('searchFlights', () => {
   it('条件メモと合わない便も含めて、検索条件に合う便を安い順に返す', () => {
@@ -63,13 +66,28 @@ describe('searchFlights', () => {
   });
 
   it('出発日や方向が違うと、便は見つからない', () => {
-    expect(ids({ ...query, departureDate: '2027-05-19' })).toEqual([]);
+    expect(ids({ ...query, departureDate: '2027-05-19', arrivalDate: '2027-05-19' })).toEqual([]);
     expect(ids({ ...query, originCode: 'TSA', destinationCode: 'HND' })).toEqual([]);
+  });
+
+  it('到着日が便の到着日と違うと、出発日が合っていても出さない', () => {
+    expect(ids({ ...query, arrivalDate: '2027-05-19' })).toEqual([]);
+  });
+
+  it('翌日に着く便は、到着日に翌日を入れたときだけ出す', () => {
+    const overnight: RoundScenario = {
+      ...sampleRound,
+      flights: sampleRound.flights.map((flight) =>
+        flight.id === 'HND-TSA-1620' ? { ...flight, arrivalDate: '2027-05-19' } : flight,
+      ),
+    };
+    expect(ids(query, overnight)).not.toContain('HND-TSA-1620');
+    expect(ids({ ...query, arrivalDate: '2027-05-19' }, overnight)).toEqual(['HND-TSA-1620']);
   });
 });
 
 describe('findQueryError', () => {
-  it('出発地・目的地・出発日がそろえば検索できる', () => {
+  it('出発地・目的地・出発日・到着日がそろえば検索できる', () => {
     expect(findQueryError(query)).toBeNull();
   });
 
@@ -77,41 +95,53 @@ describe('findQueryError', () => {
     expect(findQueryError({ ...query, originCode: '' })).not.toBeNull();
     expect(findQueryError({ ...query, destinationCode: 'HND' })).not.toBeNull();
     expect(findQueryError({ ...query, departureDate: '' })).not.toBeNull();
+    expect(findQueryError({ ...query, arrivalDate: '' })).not.toBeNull();
+  });
+
+  it('到着日が出発日と同じか後なら検索でき、1日でも前なら検索できない', () => {
+    expect(findQueryError({ ...query, arrivalDate: '2027-05-19' })).toBeNull();
+    expect(findQueryError({ ...query, arrivalDate: '2027-05-17' })).toBe(
+      '到着日が出発日より前になっています',
+    );
   });
 });
 
 describe('searchDurationMs', () => {
-  const range = { min: 20_000, max: 30_000 };
+  const range = { min: 4_000, max: 6_000 };
 
   it('同じ検索条件なら、何度検索しても同じ時間になる', () => {
     expect(searchDurationMs({ ...query }, range)).toBe(searchDurationMs(query, range));
   });
 
-  it('どの条件でも、20〜30秒の範囲に入る', () => {
+  it('どの条件でも4〜6秒の範囲に入り、0.1秒単位になる', () => {
     const dates = Array.from({ length: 31 }, (_, i) => `2027-05-${String(i + 1).padStart(2, '0')}`);
     for (const departureDate of dates) {
       for (const checkedBaggageKg of [0, 15, 20, 23]) {
-        const ms = searchDurationMs({ ...query, departureDate, checkedBaggageKg }, range);
-        expect(ms).toBeGreaterThanOrEqual(20_000);
-        expect(ms).toBeLessThanOrEqual(30_000);
+        const ms = searchDurationMs(
+          { ...query, departureDate, arrivalDate: departureDate, checkedBaggageKg },
+          range,
+        );
+        expect(ms).toBeGreaterThanOrEqual(4_000);
+        expect(ms).toBeLessThanOrEqual(6_000);
+        expect(ms % 100).toBe(0);
       }
     }
   });
 
   it('範囲の幅が0なら、常にその時間になる', () => {
-    expect(searchDurationMs(query, { min: 25_000, max: 25_000 })).toBe(25_000);
+    expect(searchDurationMs(query, { min: 5_000, max: 5_000 })).toBe(5_000);
   });
 });
 
 describe('getSearchProgress', () => {
   it('開始の時点は0%、所要時間の1ミリ秒前までは検索中', () => {
-    expect(getSearchProgress(1_000, 20_000, 1_000)).toEqual({ kind: 'searching', ratio: 0 });
-    expect(getSearchProgress(1_000, 20_000, 11_000)).toEqual({ kind: 'searching', ratio: 0.5 });
-    expect(getSearchProgress(1_000, 20_000, 20_999).kind).toBe('searching');
+    expect(getSearchProgress(1_000, 4_000, 1_000)).toEqual({ kind: 'searching', ratio: 0 });
+    expect(getSearchProgress(1_000, 4_000, 3_000)).toEqual({ kind: 'searching', ratio: 0.5 });
+    expect(getSearchProgress(1_000, 4_000, 4_999).kind).toBe('searching');
   });
 
   it('開始から所要時間が経った時刻ちょうどで完了し、完了時刻を返す', () => {
-    expect(getSearchProgress(1_000, 20_000, 21_000)).toEqual({ kind: 'done', completedAt: 21_000 });
-    expect(getSearchProgress(1_000, 20_000, 99_000)).toEqual({ kind: 'done', completedAt: 21_000 });
+    expect(getSearchProgress(1_000, 4_000, 5_000)).toEqual({ kind: 'done', completedAt: 5_000 });
+    expect(getSearchProgress(1_000, 4_000, 99_000)).toEqual({ kind: 'done', completedAt: 5_000 });
   });
 });

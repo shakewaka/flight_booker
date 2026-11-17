@@ -30,7 +30,12 @@ export function findTripViolations(
   if (requirements.departAfter !== undefined && flight.departureTime < requirements.departAfter) {
     violations.push('departureTime');
   }
-  if (requirements.arriveBy !== undefined && flight.arrivalTime > requirements.arriveBy) {
+  // 到着の期限は、出発日のその時刻。翌日以降に着く便は、時刻が早くても期限を過ぎている。
+  if (
+    requirements.arriveBy !== undefined &&
+    `${flight.arrivalDate} ${flight.arrivalTime}` >
+      `${requirements.departureDate} ${requirements.arriveBy}`
+  ) {
     violations.push('arrivalTime');
   }
   if (flight.checkedBaggageKg < requirements.checkedBaggageKg) violations.push('checkedBaggage');

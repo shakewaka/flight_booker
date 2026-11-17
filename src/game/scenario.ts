@@ -19,7 +19,7 @@ export function findScenarioProblems(scenario: RoundScenario, participantCount: 
     if (!airportCodes.has(flight.originCode) || !airportCodes.has(flight.destinationCode)) {
       problems.push(`便 ${flight.id}：空港の一覧にない空港を使っている`);
     } else if (flightDurationMinutes(scenario.airports, flight) <= 0) {
-      // 時差の考え違いや、日付をまたぐ便の書き間違いを見つける。
+      // 時差の考え違いや、到着日の書き間違いを見つける。
       problems.push(`便 ${flight.id}：時差を考えると、到着が出発より前になっている`);
     }
     if (!airlineIds.has(flight.sellingAirlineId) || !airlineIds.has(flight.operatingAirlineId)) {

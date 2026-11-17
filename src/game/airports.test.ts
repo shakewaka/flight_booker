@@ -34,6 +34,7 @@ const flight: Flight = {
   destinationCode: 'TSA',
   departureDate: '2027-05-18',
   departureTime: '08:10',
+  arrivalDate: '2027-05-18',
   arrivalTime: '10:45',
   arrivalTerminal: 1,
   stops: 0,
@@ -93,6 +94,30 @@ describe('flightDurationMinutes', () => {
         arrivalTime: '14:05',
       }),
     ).toBe(185);
+  });
+});
+
+describe('flightDurationMinutes（日付をまたぐ便）', () => {
+  it('到着日が翌日なら、1日分を足して所要時間を求める', () => {
+    // 羽田 23:30 発 → 台北 翌日 02:10 着。現地時刻の差 160分 に、時差1時間を足して 220分。
+    const overnight = {
+      ...flight,
+      departureTime: '23:30',
+      arrivalDate: '2027-05-19',
+      arrivalTime: '02:10',
+    };
+    expect(flightDurationMinutes(airports, overnight)).toBe(220);
+  });
+
+  it('月末をまたいでも、日付の差を正しく求める', () => {
+    const monthEnd = {
+      ...flight,
+      departureDate: '2027-05-31',
+      departureTime: '23:30',
+      arrivalDate: '2027-06-01',
+      arrivalTime: '02:10',
+    };
+    expect(flightDurationMinutes(airports, monthEnd)).toBe(220);
   });
 });
 

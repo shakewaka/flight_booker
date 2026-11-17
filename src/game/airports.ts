@@ -37,13 +37,21 @@ function toMinutes(time: string): number {
   return hours * 60 + minutes;
 }
 
+/** YYYY-MM-DD の日付が、何日目かを表す数。日付の差を求めるのに使う。 */
+function toDayNumber(isoDate: string): number {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  return Date.UTC(year, month - 1, day) / 86_400_000;
+}
+
 /**
- * 飛行の所要時間（分）。出発・到着の時刻は、それぞれの空港の現地時間で持っている。
- * 日付をまたぐ便は扱わないため、0以下になったらデータの誤りとして扱う。
+ * 飛行の所要時間（分）。出発・到着の日時は、それぞれの空港の現地時間で持っている。
+ * 0以下になったら、データの誤りとして扱う。
  */
 export function flightDurationMinutes(airports: Airport[], flight: Flight): number {
   const origin = findAirport(airports, flight.originCode);
   const destination = findAirport(airports, flight.destinationCode);
-  const localDifference = toMinutes(flight.arrivalTime) - toMinutes(flight.departureTime);
+  const days = toDayNumber(flight.arrivalDate) - toDayNumber(flight.departureDate);
+  const localDifference =
+    days * 24 * 60 + toMinutes(flight.arrivalTime) - toMinutes(flight.departureTime);
   return localDifference - (destination.utcOffsetMinutes - origin.utcOffsetMinutes);
 }

@@ -26,7 +26,7 @@ export type GameSettings = {
   roundTimeLimitMs: number;
   /** 仮：ラウンド開始前のカウント。予約タイムには含めない。 */
   startCountdownMs: number;
-  /** 仮：比較検索にかかる時間の範囲。 */
+  /** 仮：比較検索にかかる時間の範囲。企画書の20〜30秒から、ユーザーの判断で5倍の速さ（4〜6秒）に変更した。 */
   searchDurationMs: { min: number; max: number };
   /** 仮：締切までに予約できなかった場合に、ラウンド最高値へ加える金額。 */
   timeoutPenalty: number;
@@ -38,7 +38,7 @@ export const prototypeSettings: GameSettings = {
   npcCount: 9,
   roundTimeLimitMs: 300_000,
   startCountdownMs: 10_000,
-  searchDurationMs: { min: 20_000, max: 30_000 },
+  searchDurationMs: { min: 4_000, max: 6_000 },
   timeoutPenalty: 0,
   // 1,000kmの標準の便が、企画書のラウンド例（18,000円・24,000円・19,000〜30,000円）になる値。
   pricing: {

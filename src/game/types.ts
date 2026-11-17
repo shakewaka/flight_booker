@@ -77,8 +77,8 @@ export type TripMemo = {
 };
 
 /**
- * 比較サイトに出る候補の便。初期データは、出発日と同じ日に到着する便だけを扱う。
- * 出発時刻は出発地の現地時間、到着時刻は目的地の現地時間で持つ。
+ * 比較サイトに出る候補の便。
+ * 出発の日時は出発地の現地時間、到着の日時は目的地の現地時間で持つ。
  */
 export type Flight = {
   id: string;
@@ -90,6 +90,8 @@ export type Flight = {
   destinationCode: string;
   departureDate: IsoDate;
   departureTime: ClockTime;
+  /** 目的地の現地の日付。日付をまたぐ便では、出発日の翌日以降になる。 */
+  arrivalDate: IsoDate;
   arrivalTime: ClockTime;
   arrivalTerminal: number;
   /** 乗継の回数。0は直行便。 */
