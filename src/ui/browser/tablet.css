@@ -1,0 +1,78 @@
+.tablet {
+  position: relative;
+  height: 100%;
+  padding: 2.2vh 0.9vw 2.4vh 1.3vw;
+}
+
+.tablet__body {
+  position: relative;
+  display: flex;
+  height: 100%;
+  padding: 22px;
+  border-radius: 30px;
+  background: linear-gradient(150deg, #24262b 0%, #131417 50%, #0b0c0e 100%);
+  /* 上から順に、側面の金属の縁、ガラスの縁、机に落ちる影（平置きなので短い） */
+  box-shadow:
+    0 0 0 2px #8e939c,
+    0 0 0 3px #4d5158,
+    inset 0 0 0 1px #3a3d44,
+    0 5px 6px rgb(0 0 0 / 55%),
+    0 14px 28px rgb(0 0 0 / 45%);
+}
+
+.tablet__camera {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #5d6b86, #0b0d12 60%);
+  box-shadow: 0 0 0 1.5px #25272c;
+  transform: translateX(-50%);
+}
+
+.tablet__screen {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #000;
+}
+
+/* 画面への照明の映り込み */
+.tablet__screen::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    rgb(255 255 255 / 8%) 0%,
+    rgb(255 255 255 / 2%) 22%,
+    transparent 38%
+  );
+  content: '';
+  pointer-events: none;
+}
+
+/* 上辺から少しだけ出ている、電源ボタンと音量ボタン */
+.tablet__button {
+  position: absolute;
+  top: calc(2.2vh - 5px);
+  height: 5px;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(180deg, #b3b7bf, #6d7179);
+  box-shadow: 0 -1px 2px rgb(0 0 0 / 35%);
+}
+
+.tablet__button--power {
+  right: 7%;
+  width: 46px;
+}
+
+.tablet__button--volume {
+  right: calc(7% + 70px);
+  width: 84px;
+}

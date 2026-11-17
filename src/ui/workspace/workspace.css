@@ -1,0 +1,56 @@
+.desk {
+  position: relative;
+  display: grid;
+  grid-template-columns: 80% 20%;
+  height: 100dvh;
+  min-width: 960px;
+  overflow: hidden;
+  isolation: isolate;
+  /* 上から順に、照明の光、板の継ぎ目、板の色むら */
+  background:
+    radial-gradient(120% 90% at 28% -10%, rgb(255 226 170 / 22%), transparent 60%),
+    repeating-linear-gradient(0deg, transparent 0 33vh, rgb(0 0 0 / 28%) 33vh calc(33vh + 2px)),
+    linear-gradient(
+      90deg,
+      #6f4526 0%,
+      #7b4e2b 18%,
+      #6a4124 37%,
+      #7a4c29 58%,
+      #66401f 79%,
+      #724829 100%
+    );
+}
+
+/* 木目。横に細長いノイズを重ねる。 */
+.desk::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='600'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.55' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0.16  0 0 0 0 0.08  0 0 0 0 0.02  0 0 0 -1.5 1.05'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 900px 600px;
+  content: '';
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+}
+
+/* 机の端に向かって暗くする。 */
+.desk::after {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: radial-gradient(130% 110% at 40% 30%, transparent 55%, rgb(20 10 4 / 45%));
+  content: '';
+  pointer-events: none;
+}
+
+.desk__pc {
+  min-width: 0;
+  min-height: 0;
+}
+
+.desk__papers {
+  display: grid;
+  grid-template-rows: 50% 50%;
+  min-width: 0;
+  min-height: 0;
+}

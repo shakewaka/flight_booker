@@ -1,0 +1,100 @@
+.memo-area {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  container-type: size;
+  place-items: center;
+}
+
+/* 文字と罫線の大きさを、表示領域に合わせて決める。1行の高さは2em。 */
+.memo {
+  position: relative;
+  width: min(88cqw, 66cqh);
+  height: 89cqh;
+  padding: 3.6em 0.9em 0.6em 2.9em;
+  overflow: hidden;
+  border-radius: 2px 2px 3px 3px;
+  /* 上から順に、左の赤い縦線、青い罫線、紙の色 */
+  background:
+    linear-gradient(
+      90deg,
+      transparent 2.2em,
+      rgb(214 84 84 / 55%) 2.2em calc(2.2em + 1px),
+      transparent calc(2.2em + 1px)
+    ),
+    repeating-linear-gradient(180deg, transparent 0 calc(2em - 1px), #b4cbe4 calc(2em - 1px) 2em) 0
+      3.6em / 100% 100% no-repeat,
+    linear-gradient(175deg, #fdf9e9, #f7f0d8);
+  /* 下に重なる紙の厚みと、机に落ちる影 */
+  box-shadow:
+    1px 2px 0 -0.5px #ece4c8,
+    2px 4px 0 -1px #e2d9ba,
+    3px 6px 0 -1.5px #d8cfae,
+    0 14px 22px rgb(0 0 0 / 38%),
+    0 3px 6px rgb(0 0 0 / 30%);
+  color: #1b2a55;
+  font-family:
+    'Klee One', Klee, 'UD Digi Kyokasho NK-R', 'UD デジタル 教科書体 NK-R', 'Yu Mincho', serif;
+  font-size: min(5cqw, 3.5cqh);
+  line-height: 2em;
+  transform: rotate(-1.4deg);
+}
+
+/* メモ帳の上部を留めている製本テープ */
+.memo__binding {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1.5em;
+  background:
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 5%) 0 2px, transparent 2px 5px),
+    linear-gradient(180deg, #37476b, #253252);
+  box-shadow: 0 2px 3px rgb(0 0 0 / 25%);
+}
+
+.memo__title {
+  margin: 0;
+  font-size: 1.2em;
+  font-weight: 700;
+  line-height: calc(2em / 1.2);
+  letter-spacing: 0.08em;
+}
+
+.memo__route {
+  margin: 0;
+  font-size: 1.15em;
+  font-weight: 700;
+  line-height: calc(2em / 1.15);
+}
+
+/* 蛍光ペンで引いた線 */
+.memo__route span {
+  padding: 0 0.2em;
+  background: linear-gradient(
+    180deg,
+    transparent 52%,
+    rgb(255 214 64 / 75%) 52% 92%,
+    transparent 92%
+  );
+}
+
+.memo__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.memo__list li {
+  padding-left: 1.1em;
+  text-indent: -1.1em;
+}
+
+.memo__list li::before {
+  content: '・';
+}
+
+.memo__note {
+  margin: 0;
+  color: #b23a3a;
+  font-size: 0.82em;
+  line-height: calc(2em / 0.82);
+}
