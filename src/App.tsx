@@ -4,6 +4,7 @@ import { sampleRound } from './data/sampleRound';
 import { createMarket } from './game/market';
 import { createRoundTimer, getRoundPhase, type RoundTimer } from './game/roundClock';
 import { prototypeSettings } from './game/settings';
+import type { Participant } from './game/types';
 import { createMarketStore, type MarketStore } from './ui/marketStore';
 import { useNow } from './ui/useNow';
 import { Workspace } from './ui/workspace/Workspace';
@@ -17,16 +18,18 @@ type Attempt = {
   timer: RoundTimer;
   /** このラウンドの市場。やり直すと、新しい市場に替わる。 */
   store: MarketStore;
+  participants: Participant[];
 };
 
 function newAttempt(id: number): Attempt {
   const timer = createRoundTimer(performance.now(), prototypeSettings);
+  const participants = createParticipants(prototypeSettings.npcCount);
   const store = createMarketStore(createMarket(sampleRound, timer), {
     scenario: sampleRound,
     settings: prototypeSettings,
-    participants: createParticipants(prototypeSettings.npcCount),
+    participants,
   });
-  return { id, timer, store };
+  return { id, timer, store, participants };
 }
 
 export default function App() {
@@ -50,6 +53,8 @@ export default function App() {
       scenario={sampleRound}
       store={attempt.store}
       participantId={PLAYER_ID}
+      participants={attempt.participants}
+      timeoutPenalty={prototypeSettings.timeoutPenalty}
       roundNumber={1}
       roundCount={prototypeSettings.roundCount}
       searchRange={prototypeSettings.searchDurationMs}

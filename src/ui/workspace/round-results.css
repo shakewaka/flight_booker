@@ -1,0 +1,159 @@
+.results {
+  display: flex;
+  flex-direction: column;
+  width: min(880px, 70vw);
+  max-height: 92vh;
+  padding: 22px 28px 20px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1.2em 3em rgb(0 0 0 / 45%);
+  color: #1f2a37;
+  text-align: left;
+}
+
+.results p,
+.results h2,
+.results h3 {
+  margin: 0;
+}
+
+.results__round {
+  color: #6b7686;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.results__head h2 {
+  margin-top: 2px;
+  font-size: 22px;
+}
+
+.results__table-wrap {
+  min-height: 0;
+  margin-top: 12px;
+  overflow: auto;
+}
+
+.results__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.results__table th,
+.results__table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #e5eaf1;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.results__table thead th {
+  position: sticky;
+  top: 0;
+  background: #f4f6f9;
+  color: #5a6576;
+  font-size: 12px;
+}
+
+.results__table tbody th {
+  font-weight: 700;
+}
+
+.results__rank {
+  width: 3em;
+  font-size: 16px;
+  font-weight: 800;
+  text-align: center !important;
+}
+
+.results__num {
+  font-variant-numeric: tabular-nums;
+  text-align: right !important;
+}
+
+/* 自分の行を目立たせる */
+.results__me {
+  background: #fff6d6;
+}
+
+.results__tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.results__tag--good {
+  background: #e3f2eb;
+  color: #1e6b47;
+}
+
+.results__tag--warn {
+  background: #fdeedc;
+  color: #a2520b;
+}
+
+.results__tag--bad {
+  background: #fbe3e3;
+  color: #a12c2c;
+}
+
+.results__detail {
+  margin-top: 14px;
+  padding: 12px 16px;
+  border-left: 4px solid #f5b400;
+  border-radius: 6px;
+  background: #fffbea;
+  font-size: 14px;
+}
+
+.results__detail h3 {
+  font-size: 15px;
+}
+
+.results__detail p,
+.results__detail ul {
+  margin: 6px 0 0;
+}
+
+.results__detail ul {
+  padding-left: 1.2em;
+}
+
+.results__values {
+  color: #6b7686;
+  font-family: Consolas, 'Courier New', 'Yu Gothic UI', monospace;
+  font-size: 13px;
+}
+
+.results__note {
+  margin-top: 12px !important;
+  color: #6b7686;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.results__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.results__actions button {
+  padding: 10px 22px;
+  border: 0;
+  border-radius: 8px;
+  background: #2862bc;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.results__actions button:focus-visible {
+  outline: 3px solid #ffd54a;
+  outline-offset: 3px;
+}

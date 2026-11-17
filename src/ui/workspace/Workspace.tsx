@@ -1,7 +1,8 @@
 import { purchaseOf } from '../../game/market';
 import { describeRequirements } from '../../game/requirements';
+import { computeRoundResults } from '../../game/results';
 import { getRoundPhase, type RoundTimer } from '../../game/roundClock';
-import type { RoundScenario } from '../../game/types';
+import type { Participant, RoundScenario } from '../../game/types';
 import { GameBrowser } from '../browser/GameBrowser';
 import { TabletFrame } from '../browser/TabletFrame';
 import { IdentityStack } from '../documents/IdentityStack';
@@ -9,6 +10,7 @@ import { MemoPad } from '../documents/MemoPad';
 import { useMarketSnapshot, type MarketStore } from '../marketStore';
 import { BookedOverlay } from './BookedOverlay';
 import { RoundOverlay } from './RoundOverlay';
+import { RoundResults } from './RoundResults';
 import './workspace.css';
 
 type WorkspaceProps = {
@@ -17,6 +19,10 @@ type WorkspaceProps = {
   store: MarketStore;
   /** 画面を操作する人間の参加者。 */
   participantId: string;
+  /** このラウンドの参加者全員（人間とNPC）。 */
+  participants: Participant[];
+  /** 時間切れの集計金額に加える額。 */
+  timeoutPenalty: number;
   roundNumber: number;
   roundCount: number;
   searchRange: { min: number; max: number };
@@ -30,6 +36,8 @@ export function Workspace({
   scenario,
   store,
   participantId,
+  participants,
+  timeoutPenalty,
   roundNumber,
   roundCount,
   searchRange,
@@ -84,7 +92,27 @@ export function Workspace({
           remainingMs={remainingMs}
         />
       )}
-      <RoundOverlay phase={phase} onRestart={onRestart} />
+      <RoundOverlay
+        phase={phase}
+        onRestart={onRestart}
+        closedContent={
+          phase.kind === 'closed' ? (
+            <RoundResults
+              rows={computeRoundResults({
+                participants,
+                market,
+                entries,
+                scenario,
+                timeoutPenalty,
+              })}
+              playerId={participantId}
+              roundNumber={roundNumber}
+              roundCount={roundCount}
+              onRestart={onRestart}
+            />
+          ) : undefined
+        }
+      />
     </main>
   );
 }

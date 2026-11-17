@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { RoundPhase } from '../../game/roundClock';
 import './round-overlay.css';
 
@@ -7,10 +8,12 @@ const START_BANNER_MS = 1_200;
 type RoundOverlayProps = {
   phase: RoundPhase;
   onRestart: () => void;
+  /** 締切後に表示する内容（ラウンド結果）。なければ「ラウンド終了」だけを出す。 */
+  closedContent?: ReactNode;
 };
 
 /** 画面全体に重ねる表示。開始前のカウント、START、締切。 */
-export function RoundOverlay({ phase, onRestart }: RoundOverlayProps) {
+export function RoundOverlay({ phase, onRestart, closedContent }: RoundOverlayProps) {
   if (phase.kind === 'countdown') {
     return (
       <div className="round-overlay round-overlay--dim" role="status" aria-live="polite">
@@ -30,6 +33,10 @@ export function RoundOverlay({ phase, onRestart }: RoundOverlayProps) {
         <span className="round-overlay__start">START</span>
       </div>
     );
+  }
+
+  if (closedContent) {
+    return <div className="round-overlay round-overlay--dim">{closedContent}</div>;
   }
 
   return (
