@@ -13,6 +13,7 @@ import type { RoundScenario, SiteId } from '../../../game/types';
 import { formatYen } from '../../format';
 import { useMarketSnapshot, type MarketStore } from '../../marketStore';
 import { SITE_INFO } from '../siteInfo';
+import { formatInput, type InputFormat } from './inputFormat';
 import './booking.css';
 
 type BookingPageProps = {
@@ -29,20 +30,33 @@ type BookingPageProps = {
 
 type Step = 'review' | 'passenger' | 'payment';
 
-const PASSENGER_FIELDS: { key: keyof PassengerInput; label: string; placeholder: string }[] = [
-  { key: 'surname', label: '姓（ローマ字）', placeholder: '例：YAMADA' },
-  { key: 'givenName', label: '名（ローマ字）', placeholder: '例：TARO' },
-  { key: 'birthDate', label: '生年月日', placeholder: 'YYYY/MM/DD' },
-  { key: 'nationality', label: '国籍', placeholder: '例：JAPAN' },
-  { key: 'passportNumber', label: 'パスポート番号', placeholder: '例：TR1234567' },
-  { key: 'passportExpiry', label: 'パスポートの有効期限', placeholder: 'YYYY/MM/DD' },
+type FieldDefinition<K extends string> = {
+  key: K;
+  label: string;
+  placeholder: string;
+  /** 入力の整え方（大文字にする、「/」を入れる、4桁ごとに空けるなど）。 */
+  format: InputFormat;
+};
+
+const PASSENGER_FIELDS: FieldDefinition<keyof PassengerInput>[] = [
+  { key: 'surname', label: '姓（ローマ字）', placeholder: '例：YAMADA', format: 'upper' },
+  { key: 'givenName', label: '名（ローマ字）', placeholder: '例：TARO', format: 'upper' },
+  { key: 'birthDate', label: '生年月日', placeholder: 'YYYY/MM/DD', format: 'date' },
+  { key: 'nationality', label: '国籍', placeholder: '例：JAPAN', format: 'upper' },
+  { key: 'passportNumber', label: 'パスポート番号', placeholder: '例：TR1234567', format: 'upper' },
+  {
+    key: 'passportExpiry',
+    label: 'パスポートの有効期限',
+    placeholder: 'YYYY/MM/DD',
+    format: 'date',
+  },
 ];
 
-const PAYMENT_FIELDS: { key: keyof PaymentInput; label: string; placeholder: string }[] = [
-  { key: 'holderName', label: 'カード名義', placeholder: '例：TARO YAMADA' },
-  { key: 'cardNumber', label: 'カード番号', placeholder: '0000 0000 0000 0000' },
-  { key: 'cardExpiry', label: '有効期限（月/年）', placeholder: 'MM/YY' },
-  { key: 'securityCode', label: '確認コード', placeholder: '3桁' },
+const PAYMENT_FIELDS: FieldDefinition<keyof PaymentInput>[] = [
+  { key: 'holderName', label: 'カード名義', placeholder: '例：TARO YAMADA', format: 'upper' },
+  { key: 'cardNumber', label: 'カード番号', placeholder: '0000 0000 0000 0000', format: 'card' },
+  { key: 'cardExpiry', label: '有効期限（月/年）', placeholder: 'MM/YY', format: 'expiry' },
+  { key: 'securityCode', label: '確認コード', placeholder: '3桁', format: 'digits' },
 ];
 
 const REFUSAL_TEXT: Record<MarketRefusal, string> = {
@@ -294,12 +308,15 @@ function usePriceTrend(price: number): 'up' | 'down' | null {
 }
 
 type FieldsProps<T extends Record<string, string>> = {
-  fields: { key: keyof T & string; label: string; placeholder: string }[];
+  fields: FieldDefinition<keyof T & string>[];
   values: T;
   onChange: (next: T) => void;
 };
 
-/** 入力欄の並び。自動入力と自動修正は使わない。 */
+/**
+ * 入力欄の並び。表記は整えるが（大文字、「/」、4桁ごとの間）、つづりや数字を直すことはしない。
+ * ブラウザの自動入力とスペルチェックは使わない。
+ */
 function Fields<T extends Record<string, string>>({ fields, values, onChange }: FieldsProps<T>) {
   return (
     <div className="booking__fields">
@@ -312,7 +329,14 @@ function Fields<T extends Record<string, string>>({ fields, values, onChange }: 
             placeholder={field.placeholder}
             autoComplete="off"
             spellCheck={false}
-            onChange={(event) => onChange({ ...values, [field.key]: event.target.value })}
+            inputMode={field.format === 'upper' ? 'text' : 'numeric'}
+            autoCapitalize={field.format === 'upper' ? 'characters' : 'off'}
+            onChange={(event) =>
+              onChange({
+                ...values,
+                [field.key]: formatInput(field.format, event.target.value, values[field.key]),
+              })
+            }
           />
         </label>
       ))}
