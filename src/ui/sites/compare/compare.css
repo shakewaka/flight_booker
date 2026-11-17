@@ -341,3 +341,59 @@
   font-size: 12px;
   font-weight: 400;
 }
+
+/* 日付の欄。打って入力する欄の右端に、カレンダーを開くボタンを重ねる。 */
+.date-field {
+  position: relative;
+  display: flex;
+}
+
+.date-field input[type='text'] {
+  flex: 1;
+  padding-right: 40px;
+}
+
+.date-field__calendar {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #4b5666;
+  cursor: pointer;
+  place-items: center;
+  translate: 0 -50%;
+}
+
+.date-field__calendar:hover {
+  background: #eef2f7;
+}
+
+.date-field__calendar:focus-visible {
+  outline: 3px solid #f5b400;
+  outline-offset: 1px;
+}
+
+.date-field__calendar svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.8;
+}
+
+/* カレンダーを開くためだけの欄。ボタンの位置に重ね、見えないようにする。 */
+.date-field__picker {
+  position: absolute;
+  right: 6px;
+  bottom: 0;
+  width: 30px;
+  height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}

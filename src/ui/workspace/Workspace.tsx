@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { closedEarly, purchaseOf } from '../../game/market';
 import { computeStandings } from '../../game/match';
 import { describeRequirements } from '../../game/requirements';
@@ -8,7 +8,7 @@ import type { PenaltySettings } from '../../game/settings';
 import type { Participant, RoundScenario } from '../../game/types';
 import { GameBrowser } from '../browser/GameBrowser';
 import { TabletFrame } from '../browser/TabletFrame';
-import { IdentityStack } from '../documents/IdentityStack';
+import { IdentityStack, type ShownDocument } from '../documents/IdentityStack';
 import { MemoPad } from '../documents/MemoPad';
 import { useMarketSnapshot, type MarketStore } from '../marketStore';
 import { BookedOverlay } from './BookedOverlay';
@@ -62,6 +62,26 @@ export function Workspace({
   const { market, entries } = useMarketSnapshot(store);
   const timer = market.timer;
   const phase = getRoundPhase(timer, now);
+  // 右下に手前に出している資料。入力欄でのTabキーでも入れ替える。
+  const [shownDocument, setShownDocument] = useState<ShownDocument>('passport');
+  const toggleDocument = () =>
+    setShownDocument((current) => (current === 'passport' ? 'card' : 'passport'));
+
+  /**
+   * ゲーム内ブラウザの入力欄にいるときは、Tabキーで次の欄へ移らず、パスポートとカードを入れ替える。
+   * 入力欄からは離れないので、資料を見ながらそのまま打ち続けられる。次の欄へは Enter で進む。
+   * 入力欄の外では、Tabキーは通常どおり、ボタンなどへ移る。
+   */
+  function switchDocumentByTab(event: KeyboardEvent) {
+    if (event.key !== 'Tab' || event.altKey || event.ctrlKey || event.metaKey) return;
+    const target = event.target as HTMLElement;
+    const inBrowserField =
+      (target instanceof HTMLInputElement || target instanceof HTMLSelectElement) &&
+      target.closest('.desk__pc') !== null;
+    if (!inBrowserField || phase.kind !== 'playing') return;
+    event.preventDefault();
+    toggleDocument();
+  }
   const memo = describeRequirements(scenario.requirements, scenario.airports, scenario.airlines);
   // カウント中は資料の中身を描画しない。締切後は操作だけを止め、資料は読めるままにする。
   const concealed = phase.kind === 'countdown';
@@ -107,7 +127,7 @@ export function Workspace({
   }
 
   return (
-    <main className="desk">
+    <main className="desk" onKeyDownCapture={switchDocumentByTab}>
       <section className="desk__pc" aria-label="タブレット" inert={locked}>
         <TabletFrame>
           <GameBrowser
@@ -125,7 +145,13 @@ export function Workspace({
       </section>
       <aside className="desk__papers" aria-label="手元の資料" inert={locked}>
         <MemoPad memo={memo} concealed={concealed} />
-        <IdentityStack passport={scenario.passport} card={scenario.card} concealed={concealed} />
+        <IdentityStack
+          passport={scenario.passport}
+          card={scenario.card}
+          concealed={concealed}
+          shown={shownDocument}
+          onToggle={toggleDocument}
+        />
       </aside>
       {bought && phase.kind === 'playing' && (
         <BookedOverlay

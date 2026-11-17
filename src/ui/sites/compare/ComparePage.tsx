@@ -11,6 +11,8 @@ import { airportName } from '../../../game/airports';
 import { formatJapaneseDate } from '../../../game/dates';
 import type { RoundScenario, SiteId } from '../../../game/types';
 import { formatRemaining } from '../../format';
+import { enterToNext } from '../../enterToNext';
+import { DateField } from './DateField';
 import { FlightCard } from './FlightCard';
 import { createProgressCurve, progressAt, type ProgressCurve } from './progressCurve';
 import './compare.css';
@@ -107,7 +109,7 @@ export function ComparePage({
         <span className="site-header__tagline">3つの予約サイトの価格をまとめて比較</span>
       </header>
 
-      <form className="compare-form" onSubmit={submit} noValidate>
+      <form className="compare-form" onSubmit={submit} onKeyDown={enterToNext} noValidate>
         <label className="compare-form__field">
           <span>出発地</span>
           <select
@@ -136,22 +138,16 @@ export function ComparePage({
             ))}
           </select>
         </label>
-        <label className="compare-form__field">
-          <span>出発日</span>
-          <input
-            type="date"
-            value={draft.departureDate}
-            onChange={(event) => update({ departureDate: event.target.value })}
-          />
-        </label>
-        <label className="compare-form__field">
-          <span>到着日</span>
-          <input
-            type="date"
-            value={draft.arrivalDate}
-            onChange={(event) => update({ arrivalDate: event.target.value })}
-          />
-        </label>
+        <DateField
+          label="出発日"
+          value={draft.departureDate}
+          onChange={(departureDate) => update({ departureDate })}
+        />
+        <DateField
+          label="到着日"
+          value={draft.arrivalDate}
+          onChange={(arrivalDate) => update({ arrivalDate })}
+        />
         <label className="compare-form__field">
           <span>受託手荷物</span>
           <select

@@ -13,6 +13,7 @@ import type { RoundScenario, SiteId } from '../../../game/types';
 import { formatYen } from '../../format';
 import { useMarketSnapshot, type MarketStore } from '../../marketStore';
 import { SITE_INFO } from '../siteInfo';
+import { enterToNext } from '../../enterToNext';
 import { formatInput, type InputFormat } from './inputFormat';
 import './booking.css';
 
@@ -247,9 +248,11 @@ export function BookingPage({
           </div>
         </div>
       ) : step === 'passenger' ? (
-        <form className="booking__panel" onSubmit={goToPayment} noValidate>
+        <form className="booking__panel" onSubmit={goToPayment} onKeyDown={enterToNext} noValidate>
           <h2>搭乗者情報</h2>
-          <p className="booking__hint">パスポートの記載どおりに入力してください。</p>
+          <p className="booking__hint">
+            パスポートの記載どおりに入力してください。Enterで次の欄へ、Tabでパスポートとカードを切り替えます。
+          </p>
           <Fields fields={PASSENGER_FIELDS} values={passenger} onChange={setPassenger} />
           {message && (
             <p className="booking__message" role="alert">
@@ -266,9 +269,11 @@ export function BookingPage({
           </div>
         </form>
       ) : (
-        <form className="booking__panel" onSubmit={confirm} noValidate>
+        <form className="booking__panel" onSubmit={confirm} onKeyDown={enterToNext} noValidate>
           <h2>決済情報</h2>
-          <p className="booking__hint">カードの記載どおりに入力してください。</p>
+          <p className="booking__hint">
+            カードの記載どおりに入力してください。Enterで次の欄へ、Tabでパスポートとカードを切り替えます。
+          </p>
           <Fields fields={PAYMENT_FIELDS} values={payment} onChange={setPayment} />
           {message && (
             <p className="booking__message" role="alert">

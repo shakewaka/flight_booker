@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { PassportData, PaymentCardData } from '../../game/types';
 import { Passport, PassportCover } from './Passport';
 import { PaymentCard, PaymentCardBack } from './PaymentCard';
@@ -9,9 +8,13 @@ type IdentityStackProps = {
   card: PaymentCardData;
   /** true のあいだは中身を描画せず、「？」だけを見せる。カードへの切替もできない。 */
   concealed: boolean;
+  /** 手前に出している資料。 */
+  shown: ShownDocument;
+  /** 手前の資料を入れ替える。領域のクリックと、入力欄でのTabキーから呼ばれる。 */
+  onToggle: () => void;
 };
 
-type ShownDocument = 'passport' | 'card';
+export type ShownDocument = 'passport' | 'card';
 
 const NAMES: Record<ShownDocument, string> = {
   passport: 'パスポート',
@@ -19,11 +22,10 @@ const NAMES: Record<ShownDocument, string> = {
 };
 
 /**
- * 右下のパスポートとカード。領域を押すたびに、表示する資料を入れ替える。
+ * 右下のパスポートとカード。領域を押すか、入力欄でTabキーを押すたびに、表示する資料を入れ替える。
  * 読めるのは手前の1つだけで、後ろの資料は表紙や裏面しか見えない。
  */
-export function IdentityStack({ passport, card, concealed }: IdentityStackProps) {
-  const [shown, setShown] = useState<ShownDocument>('passport');
+export function IdentityStack({ passport, card, concealed, shown, onToggle }: IdentityStackProps) {
   const other: ShownDocument = shown === 'passport' ? 'card' : 'passport';
 
   if (concealed) {
@@ -45,7 +47,7 @@ export function IdentityStack({ passport, card, concealed }: IdentityStackProps)
     <section className="identity" aria-label="パスポートとカード">
       <p className="identity__label">
         <strong>{NAMES[shown]}</strong>
-        <span aria-hidden="true">クリックで{NAMES[other]}へ ⇄</span>
+        <span aria-hidden="true">クリック／Tabキーで{NAMES[other]}へ ⇄</span>
       </p>
 
       <div className="identity__stage" key={shown}>
@@ -73,8 +75,8 @@ export function IdentityStack({ passport, card, concealed }: IdentityStackProps)
       <button
         type="button"
         className="identity__toggle"
-        aria-label={`${NAMES[shown]}を表示中。押すと${NAMES[other]}に切り替え`}
-        onClick={() => setShown(other)}
+        aria-label={`${NAMES[shown]}を表示中。押すと${NAMES[other]}に切り替え（入力欄にいるときはTabキーでも切り替え）`}
+        onClick={onToggle}
       />
     </section>
   );
