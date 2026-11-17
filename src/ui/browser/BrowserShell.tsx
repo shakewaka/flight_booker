@@ -1,10 +1,30 @@
 import './browser.css';
 
+/** 残り時間がこれ以下になったら、時計を赤くする。 */
+const WARNING_MS = 30_000;
+
+/** 残り時間を mm:ss にする。秒の端数は切り上げ、00:00 は締切の時点だけに出す。 */
+function formatRemaining(ms: number): string {
+  const totalSeconds = Math.ceil(Math.max(0, ms) / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+type BrowserShellProps = {
+  roundNumber: number;
+  roundCount: number;
+  remainingMs: number;
+};
+
 /**
  * ゲーム内ブラウザの枠。タブの追加・切替と検索は、この後の作業で実装する。
  * 現時点の操作ボタンは見た目だけで、押せる部品としては公開しない。
  */
-export function BrowserShell() {
+export function BrowserShell({ roundNumber, roundCount, remainingMs }: BrowserShellProps) {
+  const timerClass =
+    remainingMs <= WARNING_MS ? 'browser__timer browser__timer--warning' : 'browser__timer';
+
   return (
     <div className="browser">
       <div className="browser__tabs" aria-hidden="true">
@@ -27,8 +47,10 @@ export function BrowserShell() {
       </div>
 
       <div className="browser__status">
-        <span>ROUND – / 4</span>
-        <span className="browser__timer">残り --:--</span>
+        <span>
+          ROUND {roundNumber} / {roundCount}
+        </span>
+        <span className={timerClass}>残り {formatRemaining(remainingMs)}</span>
       </div>
 
       <div className="browser__page">

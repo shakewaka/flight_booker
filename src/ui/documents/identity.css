@@ -475,3 +475,29 @@
   margin-top: 1.5em;
   background: #07090d;
 }
+
+/* 開始前は、何も書かれていない閉じたパスポートに「？」だけを見せる。国名も出さない。 */
+.identity__concealed {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 17.6em;
+  height: 25em;
+  border-radius: 0.5em 1em 1em 0.5em;
+  background:
+    linear-gradient(90deg, rgb(0 0 0 / 35%) 0, transparent 0.9em),
+    linear-gradient(140deg, #1d3060, #121d3d);
+  box-shadow:
+    0 0.9em 1.6em rgb(0 0 0 / 42%),
+    0 0.2em 0.4em rgb(0 0 0 / 35%);
+  color: #c9a85a;
+  font-size: 1em;
+  place-items: center;
+  transform: translate(-50%, -50%) rotate(-2deg);
+}
+
+.identity__concealed-mark {
+  font-size: 7em;
+  font-weight: 700;
+}

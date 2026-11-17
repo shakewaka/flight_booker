@@ -116,6 +116,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+.browser__timer--warning {
+  color: #ff8a8a;
+}
+
 .browser__page {
   flex: 1;
   min-height: 0;

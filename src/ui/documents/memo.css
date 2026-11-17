@@ -98,3 +98,14 @@
   font-size: 0.82em;
   line-height: calc(2em / 0.82);
 }
+
+/* 開始前は、メモの内容の代わりに「？」だけを書いておく。 */
+.memo__concealed {
+  margin: 0;
+  padding-top: 0.5em;
+  font-size: 4em;
+  font-weight: 700;
+  line-height: calc(2em / 4 * 2);
+  text-align: center;
+  opacity: 0.75;
+}
