@@ -107,6 +107,9 @@ export function createMarketStore(initial: MarketState, options: StoreOptions): 
       update({
         ...snapshot,
         market: next.market,
+        // NPCの予約の入力内容も、人間と同じ判定にかけるため記録する。
+        entries:
+          next.entries.length > 0 ? [...snapshot.entries, ...next.entries] : snapshot.entries,
         npcs: npcsChanged ? next.npcs : snapshot.npcs,
         site3Viewers: viewersChanged ? next.site3Viewers : snapshot.site3Viewers,
       });

@@ -10,6 +10,7 @@ import {
   type NpcKind,
   type NpcState,
 } from './npc';
+import { judgeBooking } from './judge';
 import { findTripViolations } from './requirements';
 import { createRoundTimer } from './roundClock';
 import { prototypeSettings as settings } from './settings';
@@ -186,10 +187,12 @@ describe('NPC9人での1ラウンド', () => {
     expect(new Set(buyers).size).toBe(buyers.length);
   });
 
-  it('NPCは条件メモを満たす便だけを買う', () => {
+  it('NPCが買う便の条件違反は、見落とした1つの条件だけ（旅行が成り立たない便は買わない）', () => {
     for (const bought of market.purchases) {
       const flight = sampleRound.flights.find((f) => f.id === bought.flightId);
-      expect(flight && findTripViolations(flight, sampleRound.requirements)).toEqual([]);
+      const npc = npcs.find((candidate) => candidate.id === bought.participantId);
+      const violations = flight ? findTripViolations(flight, sampleRound.requirements) : ['?'];
+      expect(violations.every((v) => v === npc?.overlooked)).toBe(true);
     }
   });
 
@@ -214,5 +217,74 @@ describe('NPC9人での1ラウンド', () => {
 
   it('サイトの好みが分かれ、1つのサイトに全員が集まらない', () => {
     expect(new Set(market.purchases.map((p) => p.site)).size).toBeGreaterThan(1);
+  });
+});
+
+describe('NPCの見落としと打ち間違え', () => {
+  it('条件を1つ見落としたNPCは、その条件だけを満たさない、より安い便を買うことがある', () => {
+    const market = freshMarket();
+    // 09:00以降の出発という条件を見落とす。07:05発（サイト1 26,000円）が候補に入る。
+    const npc = { ...npcOf('rusher', market), overlooked: 'departureTime' as const };
+    const { market: after } = runAlone(npc, market);
+    expect(after.purchases).toEqual([
+      expect.objectContaining({ flightId: 'HND-TSA-0705', site: 'site1' }),
+    ]);
+  });
+
+  it('見落とさないNPCは、条件を満たす便だけを候補にする', () => {
+    const market = freshMarket();
+    const npc = { ...npcOf('rusher', market), overlooked: null };
+    expect(runAlone(npc, market).market.purchases[0].flightId).toBe('HND-TSA-0910');
+  });
+
+  it('打ち間違えるNPCは、その1項目だけを間違えた入力内容を残す', () => {
+    let market = freshMarket();
+    let npc: NpcState = { ...npcOf('rusher', market), typoField: 'passportNumber' };
+    let entry;
+    for (let now = 0; now <= DEADLINE && !entry; now += TICK) {
+      const stepped = stepNpc(npc, market, ctxAt(now));
+      ({ npc, market } = stepped);
+      entry = stepped.entry;
+    }
+    expect(entry && judgeBooking(entry, sampleRound).inputMistakes).toEqual([
+      { field: 'passportNumber', entered: 'PX0417268', expected: 'PX0417286' },
+    ]);
+  });
+
+  it('打ち間違えないNPCの入力内容は、パスポート・カードどおり', () => {
+    let market = freshMarket();
+    let npc: NpcState = { ...npcOf('careful', market), typoField: null };
+    let entry;
+    for (let now = 0; now <= DEADLINE && !entry; now += TICK) {
+      const stepped = stepNpc(npc, market, ctxAt(now));
+      ({ npc, market } = stepped);
+      entry = stepped.entry;
+    }
+    expect(entry && judgeBooking(entry, sampleRound)).toEqual({
+      inputMistakes: [],
+      tripViolations: [],
+    });
+  });
+
+  it('見落とすNPCと打ち間違えるNPCは、設定の割合くらいの人数になる', () => {
+    const market = freshMarket();
+    const many = Array.from({ length: 400 }, (_, i) =>
+      createNpc(`npc-${i}`, i, market, sampleRound, settings),
+    );
+    const typoRate = many.filter((n) => n.typoField).length / many.length;
+    const oversightRate = many.filter((n) => n.overlooked).length / many.length;
+    expect(typoRate).toBeGreaterThan(settings.npc.inputMistakeRate - 0.07);
+    expect(typoRate).toBeLessThan(settings.npc.inputMistakeRate + 0.07);
+    expect(oversightRate).toBeGreaterThan(settings.npc.oversightRate - 0.07);
+    expect(oversightRate).toBeLessThan(settings.npc.oversightRate + 0.07);
+  });
+
+  it('NPCは、出発地・目的地・出発日を見落とさない', () => {
+    const market = freshMarket();
+    const many = Array.from({ length: 400 }, (_, i) =>
+      createNpc(`npc-${i}`, i, market, sampleRound, settings),
+    );
+    const fatal = ['origin', 'destination', 'departureDate'];
+    expect(many.some((n) => n.overlooked && fatal.includes(n.overlooked))).toBe(false);
   });
 });

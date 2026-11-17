@@ -33,6 +33,10 @@ export type NpcSettings = {
   stopWaitingRemainingMs: number;
   /** サイト3の値下がりを待つNPCが買う価格。価格の範囲のうち、下からこの割合までなら買う。 */
   site3BuyBelowRate: number;
+  /** 1ラウンドで、パスポートかカードの1項目を打ち間違えるNPCの割合。 */
+  inputMistakeRate: number;
+  /** 1ラウンドで、条件メモの条件を1つ見落として便を選ぶNPCの割合。 */
+  oversightRate: number;
 };
 
 /** 仮：サイト3の価格と閲覧人数の関係。 */
@@ -94,6 +98,8 @@ export const prototypeSettings: GameSettings = {
     priceCheckMs: 3_000,
     stopWaitingRemainingMs: 60_000,
     site3BuyBelowRate: 0.3,
+    inputMistakeRate: 0.2,
+    oversightRate: 0.15,
   },
   // 10人中5人が閲覧すると上限の価格になる。
   site3: { fullPriceViewRate: 0.5 },

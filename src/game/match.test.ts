@@ -118,7 +118,7 @@ describe('4ラウンドの出題データ', () => {
 
 describe('4ラウンドでのNPC', () => {
   it.each(matchRounds.map((scenario, index) => [index + 1, scenario] as const))(
-    'ラウンド%iでも、NPCは1人1件まで、条件を満たす便だけを、販売枠の中で買う',
+    'ラウンド%iでも、NPCは1人1件まで、見落とした条件のほかは条件を満たす便を、販売枠の中で買う',
     (_, scenario) => {
       const participants = createParticipants(prototypeSettings.npcCount);
       const timer = createRoundTimer(0, prototypeSettings);
@@ -139,7 +139,9 @@ describe('4ラウンドでのNPC', () => {
       expect(market.purchases.length).toBeGreaterThan(0);
       for (const bought of market.purchases) {
         const flight = scenario.flights.find((f) => f.id === bought.flightId);
-        expect(flight && findTripViolations(flight, scenario.requirements)).toEqual([]);
+        const npc = npcs.find((candidate) => candidate.id === bought.participantId);
+        const violations = flight ? findTripViolations(flight, scenario.requirements) : ['?'];
+        expect(violations.every((v) => v === npc?.overlooked)).toBe(true);
       }
       for (const offer of scenario.offers) {
         const sold = market.purchases.filter(

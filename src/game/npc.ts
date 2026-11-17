@@ -1,6 +1,8 @@
+import type { BookingEntry } from './booking';
+import type { InputField } from './judge';
 import { placeHold, purchase, purchaseOf, type MarketState } from './market';
-import { pickInRange } from './random';
-import { findTripViolations } from './requirements';
+import { pickInRange, unitFromString } from './random';
+import { findTripViolations, type TripViolation } from './requirements';
 import { searchDurationMs } from './search';
 import { countSite3Viewers, withSite3Prices, type Site3Viewing } from './site3Pricing';
 import type { GameSettings } from './settings';
@@ -32,6 +34,10 @@ export type NpcState = {
   seed: string;
   /** 速さの倍率。小さいほど速い。 */
   speed: number;
+  /** このラウンドで見落とす条件。見落とさなければ null。旅行が成り立たなくなる条件は見落とさない。 */
+  overlooked: TripViolation | null;
+  /** このラウンドで打ち間違える入力の項目。間違えなければ null。 */
+  typoField: InputField | null;
   phase: 'searching' | 'passenger' | 'payment' | 'done' | 'gave-up';
   /** 今の段階を終えて、次の操作をする時刻。 */
   readyAt: number;
@@ -75,11 +81,17 @@ export function createNpc(
   const kind = NPC_KINDS[index % NPC_KINDS.length];
   const seed = `${id}|${scenario.id}`;
   const speed = pickInRange(`${seed}|speed`, settings.npc.speed);
+  const pick = <T>(label: string, rate: number, choices: T[]): T | null =>
+    unitFromString(`${seed}|${label}`) < rate
+      ? choices[Math.floor(unitFromString(`${seed}|${label}-which`) * choices.length)]
+      : null;
   const npc: NpcState = {
     id,
     kind,
     seed,
     speed,
+    overlooked: pick('oversight', settings.npc.oversightRate, OVERLOOKABLE),
+    typoField: pick('typo', settings.npc.inputMistakeRate, TYPO_FIELDS),
     phase: 'searching',
     readyAt: 0,
     attempt: 0,
@@ -100,8 +112,37 @@ function durationOf(npc: NpcState, label: string, range: { min: number; max: num
   return Math.round(pickInRange(`${npc.seed}|${label}|${npc.attempt}`, range) * npc.speed);
 }
 
-/** 条件メモを満たす便を、そのサイトの価格が安い順に並べる。 */
-function validFlightsBy(scenario: RoundScenario, market: MarketState, site: SiteId): string[] {
+/** NPCが見落とすことのある条件。出発地・目的地・出発日は見落とさない。 */
+const OVERLOOKABLE: TripViolation[] = [
+  'departureTime',
+  'arrivalTime',
+  'operatingAirline',
+  'arrivalTerminal',
+  'checkedBaggage',
+];
+
+/** NPCが打ち間違えることのある入力の項目。 */
+const TYPO_FIELDS: InputField[] = [
+  'surname',
+  'givenName',
+  'birthDate',
+  'passportNumber',
+  'passportExpiry',
+  'cardNumber',
+  'cardExpiry',
+  'securityCode',
+];
+
+/**
+ * NPCが条件を満たすと考える便を、そのサイトの価格が安い順に並べる。
+ * 条件を1つ見落としているNPCは、その条件だけを満たさない便も候補に入れる。
+ */
+function validFlightsBy(
+  npc: NpcState,
+  scenario: RoundScenario,
+  market: MarketState,
+  site: SiteId,
+): string[] {
   const priceOf = (flightId: string) =>
     site === 'site1'
       ? market.site1Price[flightId]
@@ -109,7 +150,9 @@ function validFlightsBy(scenario: RoundScenario, market: MarketState, site: Site
         ? market.site2Price[flightId]
         : market.site3Price[flightId];
   return scenario.flights
-    .filter((flight) => findTripViolations(flight, scenario.requirements).length === 0)
+    .filter((flight) =>
+      findTripViolations(flight, scenario.requirements).every((v) => v === npc.overlooked),
+    )
     .map((flight) => flight.id)
     .sort((a, b) => priceOf(a) - priceOf(b));
 }
@@ -122,7 +165,7 @@ function nextCandidate(
   sites: SiteId[] = SITE_ORDER[npc.kind],
 ): { flightId: string; site: SiteId } | null {
   for (const site of sites) {
-    for (const flightId of validFlightsBy(scenario, market, site)) {
+    for (const flightId of validFlightsBy(npc, scenario, market, site)) {
       if (!npc.tried.includes(keyOf(flightId, site))) return { flightId, site };
     }
   }
@@ -191,7 +234,7 @@ export function stepNpc(
   npc: NpcState,
   market: MarketState,
   ctx: NpcContext,
-): { npc: NpcState; market: MarketState } {
+): { npc: NpcState; market: MarketState; entry?: BookingEntry } {
   const unchanged = { npc, market };
   if (npc.phase === 'done' || npc.phase === 'gave-up') return unchanged;
   if (ctx.now >= market.timer.deadlineAt) return { npc: { ...npc, phase: 'gave-up' }, market };
@@ -257,9 +300,56 @@ export function stepNpc(
     procedureId: target.procedureId,
     now: ctx.now,
   });
-  if (bought.ok) return { npc: { ...npc, phase: 'done' }, market: bought.state };
+  if (bought.ok) {
+    return {
+      npc: { ...npc, phase: 'done' },
+      market: bought.state,
+      entry: npcEntry(npc, target, ctx.scenario),
+    };
+  }
   if (bought.reason === 'closed') return { npc: { ...npc, phase: 'gave-up' }, market };
   return { npc: recover(npc, ctx), market };
+}
+
+/** 打ち間違えた値。末尾の2文字を入れ替え、同じ文字なら末尾を別の文字に変える。 */
+function mistype(value: string): string {
+  const a = value.at(-2);
+  const b = value.at(-1);
+  if (a !== undefined && b !== undefined && a !== b) return value.slice(0, -2) + b + a;
+  return value.slice(0, -1) + (b === '0' ? '1' : '0');
+}
+
+/** NPCが予約で入力した内容。打ち間違える項目があれば、その項目だけ値を変える。 */
+function npcEntry(npc: NpcState, target: NpcTarget, scenario: RoundScenario): BookingEntry {
+  const { passport, card } = scenario;
+  const entry: BookingEntry = {
+    participantId: npc.id,
+    procedureId: target.procedureId,
+    site: target.site,
+    flightId: target.flightId,
+    passenger: {
+      surname: passport.surname,
+      givenName: passport.givenName,
+      birthDate: passport.birthDate.replaceAll('-', '/'),
+      nationality: passport.nationality,
+      passportNumber: passport.passportNumber,
+      passportExpiry: passport.expiryDate.replaceAll('-', '/'),
+    },
+    payment: {
+      holderName: card.holderName,
+      cardNumber: card.number,
+      cardExpiry: card.expiry,
+      securityCode: card.securityCode,
+    },
+  };
+  const field = npc.typoField;
+  if (!field) return entry;
+  if (field in entry.passenger) {
+    const key = field as keyof BookingEntry['passenger'];
+    return { ...entry, passenger: { ...entry.passenger, [key]: mistype(entry.passenger[key]) } };
+  }
+  const key = field as keyof BookingEntry['payment'];
+  return { ...entry, payment: { ...entry.payment, [key]: mistype(entry.payment[key]) } };
 }
 
 /** NPCがサイト3で開いている便。閲覧人数に数える。 */
@@ -294,14 +384,22 @@ export function advanceNpcs(
   humanViewing: Site3Viewing,
   participantCount: number,
   ctx: NpcContext,
-): { market: MarketState; npcs: NpcState[]; site3Viewers: Record<string, number> } {
+): {
+  market: MarketState;
+  npcs: NpcState[];
+  site3Viewers: Record<string, number>;
+  /** この1歩で購入したNPCの、予約の入力内容。 */
+  entries: BookingEntry[];
+} {
   const next = [...npcs];
+  const entries: BookingEntry[] = [];
   const offset = npcs.length > 0 ? Math.floor(ctx.now / 100) % npcs.length : 0;
   for (let i = 0; i < next.length; i += 1) {
     const index = (offset + i) % next.length;
     const stepped = stepNpc(next[index], market, ctx);
     next[index] = stepped.npc;
     market = stepped.market;
+    if (stepped.entry) entries.push(stepped.entry);
   }
 
   const viewing: Site3Viewing = { ...humanViewing };
@@ -316,5 +414,5 @@ export function advanceNpcs(
     ctx.settings.site3,
     ctx.settings.pricing.roundingStep,
   );
-  return { market, npcs: next, site3Viewers };
+  return { market, npcs: next, site3Viewers, entries };
 }
