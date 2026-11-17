@@ -1,8 +1,10 @@
 // ゲーム内ブラウザのタブの並び。画面の状態だけを扱い、在庫や予約の判定は持たない。
 // 企画書のとおり、タブの数に上限は置かない。
 
-/** タブで開くページの種類。予約サイトは、この後の作業で追加する。 */
-export type TabPage = 'compare';
+import type { SiteId } from '../../game/types';
+
+/** タブで開くページ。比較サイトか、ある便の予約サイトの手続き。 */
+export type TabPage = { kind: 'compare' } | { kind: 'booking'; site: SiteId; flightId: string };
 
 export type Tab = {
   id: string;
@@ -23,7 +25,7 @@ export type TabsAction =
 
 /** 最初は比較サイトを1タブだけ開いておく。 */
 export function createInitialTabs(): TabsState {
-  return { tabs: [{ id: 'tab-1', page: 'compare' }], activeId: 'tab-1', nextNumber: 2 };
+  return { tabs: [{ id: 'tab-1', page: { kind: 'compare' } }], activeId: 'tab-1', nextNumber: 2 };
 }
 
 export function tabsReducer(state: TabsState, action: TabsAction): TabsState {

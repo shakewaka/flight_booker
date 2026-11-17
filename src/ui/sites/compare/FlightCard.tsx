@@ -3,21 +3,19 @@ import { airportName, flightDurationMinutes } from '../../../game/airports';
 import type { SearchResult } from '../../../game/search';
 import type { RoundScenario, SiteId } from '../../../game/types';
 import { formatYen } from '../../format';
+import { SITE_IDS, SITE_INFO } from '../siteInfo';
 
 type FlightCardProps = {
   result: SearchResult;
   scenario: RoundScenario;
+  /** 予約サイトを新しいタブで開く。 */
+  onBook: (site: SiteId, flightId: string) => void;
 };
 
-/** 予約サイトの名前と特徴。サイト名は企画書の仮称。 */
-const SITES: { id: SiteId; name: string; feature: string }[] = [
-  { id: 'site1', name: '予約サイト1', feature: '最安。予約が確定するまで席を確保しない' },
-  { id: 'site2', name: '予約サイト2', feature: '手続きの途中で席と価格を確保する' },
-  { id: 'site3', name: '予約サイト3', feature: '閲覧人数で価格が変わる。確定した瞬間の価格になる' },
-];
+const SITES = SITE_IDS.map((id) => ({ id, ...SITE_INFO[id] }));
 
 /** 検索結果の1件。検索で絞り込めない条件も、ここで確認できるようにする。 */
-export function FlightCard({ result, scenario }: FlightCardProps) {
+export function FlightCard({ result, scenario, onBook }: FlightCardProps) {
   const [showPrices, setShowPrices] = useState(false);
   const { flight, offers } = result;
 
@@ -90,8 +88,8 @@ export function FlightCard({ result, scenario }: FlightCardProps) {
                 <td className="flight-card__site-price">{priceText[site.id]}</td>
                 <td className="flight-card__site-feature">{site.feature}</td>
                 <td>
-                  <button type="button" disabled title="予約サイトは次の作業で追加する">
-                    予約へ進む（準備中）
+                  <button type="button" onClick={() => onBook(site.id, flight.id)}>
+                    予約へ進む
                   </button>
                 </td>
               </tr>

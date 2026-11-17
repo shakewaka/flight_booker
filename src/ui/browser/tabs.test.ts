@@ -8,15 +8,15 @@ const ids = (state: TabsState) => state.tabs.map((tab) => tab.id);
 
 /** tab-1〜tab-4 の4タブを開き、tab-4 を表示している状態。 */
 const four = run([
-  { type: 'open', page: 'compare' },
-  { type: 'open', page: 'compare' },
-  { type: 'open', page: 'compare' },
+  { type: 'open', page: { kind: 'compare' } },
+  { type: 'open', page: { kind: 'compare' } },
+  { type: 'open', page: { kind: 'compare' } },
 ]);
 
 describe('tabsReducer', () => {
   it('最初は比較サイトのタブが1つだけ開いている', () => {
     const state = createInitialTabs();
-    expect(state.tabs).toEqual([{ id: 'tab-1', page: 'compare' }]);
+    expect(state.tabs).toEqual([{ id: 'tab-1', page: { kind: 'compare' } }]);
     expect(state.activeId).toBe('tab-1');
   });
 
@@ -58,7 +58,7 @@ describe('tabsReducer', () => {
     const state = run(
       [
         { type: 'close', id: 'tab-4' },
-        { type: 'open', page: 'compare' },
+        { type: 'open', page: { kind: 'compare' } },
       ],
       four,
     );
@@ -70,9 +70,21 @@ describe('tabsReducer', () => {
     expect(tabsReducer(four, { type: 'activate', id: 'tab-9' })).toBe(four);
   });
 
+  it('予約サイトのタブも、比較サイトと同じ規則で右端に開く', () => {
+    const state = tabsReducer(four, {
+      type: 'open',
+      page: { kind: 'booking', site: 'site2', flightId: 'HND-TSA-0910' },
+    });
+    expect(state.tabs.at(-1)).toEqual({
+      id: 'tab-5',
+      page: { kind: 'booking', site: 'site2', flightId: 'HND-TSA-0910' },
+    });
+    expect(state.activeId).toBe('tab-5');
+  });
+
   it('タブの数に上限はない', () => {
     const many = run(
-      Array.from({ length: 50 }, () => ({ type: 'open', page: 'compare' }) as const),
+      Array.from({ length: 50 }, () => ({ type: 'open', page: { kind: 'compare' } }) as const),
     );
     expect(many.tabs).toHaveLength(51);
   });

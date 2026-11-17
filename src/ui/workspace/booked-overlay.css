@@ -1,0 +1,139 @@
+.booked {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  gap: 2.4vh;
+  align-items: center;
+  justify-content: center;
+  background: rgb(28 30 36 / 58%);
+  backdrop-filter: grayscale(0.6);
+  color: #fff;
+}
+
+.booked p {
+  margin: 0;
+}
+
+.ticket {
+  width: min(560px, 44vw);
+  overflow: hidden;
+  border-radius: 14px;
+  background: #fffdf7;
+  box-shadow: 0 1.2em 3em rgb(0 0 0 / 50%);
+  color: #1f2a37;
+  animation: ticket-in 0.45s ease-out;
+}
+
+@keyframes ticket-in {
+  from {
+    opacity: 0;
+    translate: 0 30px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticket {
+    animation: none;
+  }
+}
+
+.ticket__head {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 22px;
+  background: #1f2c44;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.ticket__body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 26px 14px;
+  border-bottom: 2px dashed #d8d2c0;
+}
+
+.ticket__place {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+}
+
+.ticket__place:last-child {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.ticket__code {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+}
+
+.ticket__time {
+  color: #4b5666;
+  font-size: 13px;
+}
+
+.ticket__plane {
+  color: #9aa4b2;
+  font-size: 28px;
+}
+
+.ticket__details {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 12px;
+  margin: 0;
+  padding: 14px 26px 18px;
+}
+
+.ticket__details dt {
+  color: #6b7686;
+  font-size: 12px;
+}
+
+.ticket__details dd {
+  margin: 2px 0 0;
+  font-weight: 700;
+}
+
+.booked__wait {
+  font-size: 15px;
+  text-shadow: 0 1px 4px rgb(0 0 0 / 50%);
+}
+
+/* 画面全体の右下に、購入金額を大きく出す。右下の資料の上に重なる。 */
+.booked__price {
+  position: absolute;
+  right: 2.5vw;
+  bottom: 3vh;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 1.2vh 1.6vw;
+  border-radius: 14px;
+  background: rgb(15 20 30 / 82%);
+  box-shadow: 0 0.6em 2em rgb(0 0 0 / 45%);
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-size: clamp(2.4rem, 6vh, 4.2rem);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.booked__price span {
+  font-family: 'Yu Gothic UI', sans-serif;
+  font-size: 0.3em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  opacity: 0.8;
+}

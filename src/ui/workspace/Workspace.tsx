@@ -1,3 +1,4 @@
+import { purchaseOf } from '../../game/market';
 import { describeRequirements } from '../../game/requirements';
 import { getRoundPhase, type RoundTimer } from '../../game/roundClock';
 import type { RoundScenario } from '../../game/types';
@@ -5,11 +6,17 @@ import { GameBrowser } from '../browser/GameBrowser';
 import { TabletFrame } from '../browser/TabletFrame';
 import { IdentityStack } from '../documents/IdentityStack';
 import { MemoPad } from '../documents/MemoPad';
+import { useMarketSnapshot, type MarketStore } from '../marketStore';
+import { BookedOverlay } from './BookedOverlay';
 import { RoundOverlay } from './RoundOverlay';
 import './workspace.css';
 
 type WorkspaceProps = {
   scenario: RoundScenario;
+  /** このラウンドの市場。全タブとNPCで共有する。 */
+  store: MarketStore;
+  /** 画面を操作する人間の参加者。 */
+  participantId: string;
   roundNumber: number;
   roundCount: number;
   searchRange: { min: number; max: number };
@@ -21,6 +28,8 @@ type WorkspaceProps = {
 /** 机の上。左80%にタブレット（企画書の「架空PC」）、右20%の上半分に条件メモ、下半分にパスポート・カードを置く。 */
 export function Workspace({
   scenario,
+  store,
+  participantId,
   roundNumber,
   roundCount,
   searchRange,
@@ -32,7 +41,10 @@ export function Workspace({
   const memo = describeRequirements(scenario.requirements, scenario.airports, scenario.airlines);
   // カウント中は資料の中身を描画しない。締切後は操作だけを止め、資料は読めるままにする。
   const concealed = phase.kind === 'countdown';
-  const locked = phase.kind !== 'playing';
+  // 予約が完了した人は、締切を待たずに操作を終える。
+  const { market, entries } = useMarketSnapshot(store);
+  const bought = purchaseOf(market, participantId);
+  const locked = phase.kind !== 'playing' || bought !== undefined;
   const remainingMs =
     phase.kind === 'playing'
       ? phase.remainingMs
@@ -46,6 +58,8 @@ export function Workspace({
         <TabletFrame>
           <GameBrowser
             scenario={scenario}
+            store={store}
+            participantId={participantId}
             roundNumber={roundNumber}
             roundCount={roundCount}
             remainingMs={remainingMs}
@@ -59,6 +73,17 @@ export function Workspace({
         <MemoPad memo={memo} concealed={concealed} />
         <IdentityStack passport={scenario.passport} card={scenario.card} concealed={concealed} />
       </aside>
+      {bought && phase.kind === 'playing' && (
+        <BookedOverlay
+          scenario={scenario}
+          purchase={bought}
+          entry={entries.find(
+            (entry) =>
+              entry.participantId === participantId && entry.procedureId === bought.procedureId,
+          )}
+          remainingMs={remainingMs}
+        />
+      )}
       <RoundOverlay phase={phase} onRestart={onRestart} />
     </main>
   );

@@ -9,7 +9,7 @@ import {
 } from '../../../game/search';
 import { airportName } from '../../../game/airports';
 import { formatJapaneseDate } from '../../../game/dates';
-import type { RoundScenario } from '../../../game/types';
+import type { RoundScenario, SiteId } from '../../../game/types';
 import { formatRemaining } from '../../format';
 import { FlightCard } from './FlightCard';
 import { createProgressCurve, progressAt, type ProgressCurve } from './progressCurve';
@@ -25,6 +25,8 @@ type ComparePageProps = {
   searchRange: { min: number; max: number };
   /** タブに出す題名と、検索中かどうかを知らせる。 */
   onStatusChange: (tabId: string, title: string, busy: boolean) => void;
+  /** 予約サイトを新しいタブで開く。 */
+  onBook: (site: SiteId, flightId: string) => void;
 };
 
 type RunningSearch = {
@@ -62,6 +64,7 @@ export function ComparePage({
   deadlineAt,
   searchRange,
   onStatusChange,
+  onBook,
 }: ComparePageProps) {
   const [draft, setDraft] = useState<SearchQuery>(EMPTY_QUERY);
   const [search, setSearch] = useState<RunningSearch | null>(null);
@@ -185,7 +188,13 @@ export function ComparePage({
 
       <section className="compare-results" aria-live="polite">
         {search ? (
-          <SearchOutcome scenario={scenario} search={search} now={now} deadlineAt={deadlineAt} />
+          <SearchOutcome
+            scenario={scenario}
+            search={search}
+            now={now}
+            deadlineAt={deadlineAt}
+            onBook={onBook}
+          />
         ) : (
           <p className="compare-results__hint">
             条件メモを見ながら検索条件を入れてください。航空会社・到着時刻・到着ターミナルは検索では絞り込めないため、候補の詳細で確認します。時刻はすべて現地時間です。
@@ -201,9 +210,10 @@ type SearchOutcomeProps = {
   search: RunningSearch;
   now: number;
   deadlineAt: number;
+  onBook: (site: SiteId, flightId: string) => void;
 };
 
-function SearchOutcome({ scenario, search, now, deadlineAt }: SearchOutcomeProps) {
+function SearchOutcome({ scenario, search, now, deadlineAt, onBook }: SearchOutcomeProps) {
   const progress = getSearchProgress(search.startedAt, search.durationMs, now);
 
   if (progress.kind === 'searching') {
@@ -253,7 +263,7 @@ function SearchOutcome({ scenario, search, now, deadlineAt }: SearchOutcomeProps
         <ol className="compare-results__list">
           {results.map((result) => (
             <li key={result.flight.id}>
-              <FlightCard result={result} scenario={scenario} />
+              <FlightCard result={result} scenario={scenario} onBook={onBook} />
             </li>
           ))}
         </ol>

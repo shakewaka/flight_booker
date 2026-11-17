@@ -1,0 +1,259 @@
+/* サイトごとの色。どの予約サイトにいるかを、一目で分かるようにする。 */
+.booking {
+  --site-color: #2862bc;
+  --site-soft: #eaf1fc;
+
+  min-height: 100%;
+  padding-bottom: 32px;
+  background: #f5f6f8;
+}
+
+.booking--site1 {
+  --site-color: #d35400;
+  --site-soft: #fdf0e6;
+}
+
+.booking--site2 {
+  --site-color: #1e8449;
+  --site-soft: #e8f6ee;
+}
+
+.booking--site3 {
+  --site-color: #7d3c98;
+  --site-soft: #f4ecf8;
+}
+
+.booking__header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  height: 60px;
+  padding: 0 32px;
+  border-bottom: 3px solid var(--site-color);
+  background: #fff;
+}
+
+.booking__logo {
+  display: grid;
+  min-width: 44px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: var(--site-color);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  place-items: center;
+}
+
+.booking__name {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.booking__feature {
+  margin-left: 6px;
+  color: #6b7686;
+  font-size: 13px;
+}
+
+.booking__steps {
+  display: flex;
+  gap: 8px;
+  margin: 18px 28px 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.booking__steps li {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #e4e8ee;
+  color: #6b7686;
+}
+
+.booking__steps li[aria-current='step'] {
+  background: var(--site-color);
+  color: #fff;
+  font-weight: 700;
+}
+
+.booking__flight {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16px 28px 0;
+  padding: 16px 20px;
+  border: 1px solid #dde2ea;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.booking__flight p {
+  margin: 0;
+}
+
+.booking__route {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.booking__local {
+  margin-left: 0.8em;
+  color: #6b7686;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.booking__meta {
+  margin-top: 6px !important;
+  color: #4b5666;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.booking__price {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  color: var(--site-color);
+  font-size: 26px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.booking__price-note {
+  color: #6b7686;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.booking__hold {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px 28px 0;
+  padding: 12px 18px;
+  border-left: 4px solid var(--site-color);
+  border-radius: 6px;
+  background: var(--site-soft);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.booking__panel,
+.booking__refusal {
+  margin: 14px 28px 0;
+  padding: 20px 24px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(20 40 80 / 10%);
+  line-height: 1.8;
+}
+
+.booking__panel h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.booking__panel p,
+.booking__refusal p {
+  margin: 0;
+}
+
+.booking__hint {
+  color: #6b7686;
+  font-size: 13px;
+}
+
+.booking__refusal {
+  border-left: 4px solid #c0392b;
+}
+
+.booking__refusal p {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.booking__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 20px;
+  margin-top: 14px;
+}
+
+.booking__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #4b5666;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.booking__field input {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #c8d2df;
+  border-radius: 6px;
+  color: #1f2a37;
+  font: inherit;
+  font-family: Consolas, 'Courier New', 'Yu Gothic UI', monospace;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.booking__message {
+  margin-top: 12px !important;
+  color: #c0392b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.booking__warning {
+  margin-top: 14px !important;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #fff4d6;
+  color: #7a5a00;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.booking__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.booking button {
+  padding: 9px 18px;
+  border: 1px solid #c8d2df;
+  border-radius: 6px;
+  background: #fff;
+  color: #1f2a37;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.booking button.booking__primary {
+  border-color: var(--site-color);
+  background: var(--site-color);
+  color: #fff;
+}
+
+.booking button:focus-visible,
+.booking__field input:focus-visible {
+  outline: 3px solid #f5b400;
+  outline-offset: 1px;
+}
+
+.booking__empty {
+  margin: 40px;
+}

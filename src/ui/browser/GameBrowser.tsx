@@ -1,11 +1,16 @@
 import { useCallback, useReducer, useState } from 'react';
-import type { RoundScenario } from '../../game/types';
+import type { RoundScenario, SiteId } from '../../game/types';
+import type { MarketStore } from '../marketStore';
+import { BookingPage } from '../sites/booking/BookingPage';
 import { ComparePage } from '../sites/compare/ComparePage';
+import { SITE_INFO } from '../sites/siteInfo';
 import { BrowserShell, type TabView } from './BrowserShell';
 import { createInitialTabs, tabsReducer, type TabPage } from './tabs';
 
 type GameBrowserProps = {
   scenario: RoundScenario;
+  store: MarketStore;
+  participantId: string;
   roundNumber: number;
   roundCount: number;
   remainingMs: number;
@@ -16,16 +21,33 @@ type GameBrowserProps = {
 
 type PageStatus = { title: string; busy: boolean };
 
-const PAGE_INFO: Record<TabPage, { title: string; url: string }> = {
-  compare: { title: '航空券比較サイト', url: 'https://compare.flight-game.invalid/' },
-};
+const COMPARE_PAGE: TabPage = { kind: 'compare' };
+
+/** タブに最初に出す題名と、アドレスバーのゲーム内URL。 */
+function describePage(page: TabPage, scenario: RoundScenario): { title: string; url: string } {
+  if (page.kind === 'compare') {
+    return { title: '航空券比較サイト', url: 'https://compare.flight-game.invalid/' };
+  }
+  const info = SITE_INFO[page.site];
+  const flight = scenario.flights.find((candidate) => candidate.id === page.flightId);
+  const route = flight
+    ? `${flight.originCode} → ${flight.destinationCode} ${flight.departureTime}`
+    : '';
+  return {
+    title: `${info.name}｜${route}`,
+    url: `https://${info.host}/booking/${page.flightId.toLowerCase()}`,
+  };
+}
 
 /**
  * ゲーム内ブラウザ。タブの並びと、タブごとのページを持つ。
  * 表示していないタブのページも描画したまま隠すので、入力・検索の進行・スクロール位置が残る。
+ * 在庫と予約は、タブごとではなく、全タブで共有する市場（store）を通して扱う。
  */
 export function GameBrowser({
   scenario,
+  store,
+  participantId,
   roundNumber,
   roundCount,
   remainingMs,
@@ -45,9 +67,20 @@ export function GameBrowser({
     });
   }, []);
 
+  const openBooking = (site: SiteId, flightId: string) =>
+    dispatch({ type: 'open', page: { kind: 'booking', site, flightId } });
+
+  // 比較サイトのタブがあればそこへ移り、なければ新しく開く。
+  const backToCompare = () => {
+    const compareTab = state.tabs.find((tab) => tab.page.kind === 'compare');
+    dispatch(
+      compareTab ? { type: 'activate', id: compareTab.id } : { type: 'open', page: COMPARE_PAGE },
+    );
+  };
+
   const tabs: TabView[] = state.tabs.map((tab) => ({
     id: tab.id,
-    title: statuses[tab.id]?.title ?? PAGE_INFO[tab.page].title,
+    title: statuses[tab.id]?.title ?? describePage(tab.page, scenario).title,
     busy: statuses[tab.id]?.busy ?? false,
   }));
   const activeTab = state.tabs.find((tab) => tab.id === state.activeId) ?? state.tabs[0];
@@ -59,10 +92,10 @@ export function GameBrowser({
       remainingMs={remainingMs}
       tabs={tabs}
       activeId={state.activeId}
-      url={PAGE_INFO[activeTab.page].url}
+      url={describePage(activeTab.page, scenario).url}
       onActivate={(id) => dispatch({ type: 'activate', id })}
       onClose={(id) => dispatch({ type: 'close', id })}
-      onOpen={() => dispatch({ type: 'open', page: 'compare' })}
+      onOpen={() => dispatch({ type: 'open', page: COMPARE_PAGE })}
     >
       {state.tabs.map((tab) => (
         <div
@@ -73,14 +106,27 @@ export function GameBrowser({
           aria-labelledby={`${tab.id}-tab`}
           hidden={tab.id !== state.activeId}
         >
-          <ComparePage
-            tabId={tab.id}
-            scenario={scenario}
-            now={now}
-            deadlineAt={deadlineAt}
-            searchRange={searchRange}
-            onStatusChange={reportStatus}
-          />
+          {tab.page.kind === 'compare' ? (
+            <ComparePage
+              tabId={tab.id}
+              scenario={scenario}
+              now={now}
+              deadlineAt={deadlineAt}
+              searchRange={searchRange}
+              onStatusChange={reportStatus}
+              onBook={openBooking}
+            />
+          ) : (
+            <BookingPage
+              tabId={tab.id}
+              site={tab.page.site}
+              flightId={tab.page.flightId}
+              scenario={scenario}
+              store={store}
+              participantId={participantId}
+              onBackToCompare={backToCompare}
+            />
+          )}
         </div>
       ))}
     </BrowserShell>
