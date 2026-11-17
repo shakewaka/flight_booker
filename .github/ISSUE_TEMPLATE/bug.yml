@@ -1,0 +1,35 @@
+name: 不具合
+description: 再現方法と期待する動きを整理する
+title: '[不具合] '
+labels: [bug]
+body:
+  - type: textarea
+    id: actual
+    attributes:
+      label: 起きたこと
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 再現手順
+      description: 画面、ラウンド、サイト、操作順などを具体的に書く
+      placeholder: '1. ゲームを開始する'
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する動き
+      description: 企画書のどの仕様と違うかも、分かれば書く
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 動作環境
+      placeholder: Windows、ブラウザ名とバージョン
+  - type: textarea
+    id: evidence
+    attributes:
+      label: スクリーンショット・エラー文

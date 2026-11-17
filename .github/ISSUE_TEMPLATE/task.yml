@@ -1,0 +1,43 @@
+name: タスク
+description: 作りたい機能や開発作業を小さく整理する
+title: '[タスク] '
+body:
+  - type: textarea
+    id: purpose
+    attributes:
+      label: 目的
+      description: 何をできるようにするか、何のために必要か
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 主な作業分野
+      options:
+        - front（画面）
+        - game（ゲーム処理）
+        - docs（資料）
+        - chore（設定・CI）
+        - back（将来のサーバー）
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 作業範囲
+      description: このタスクで変更する範囲と、関連する企画書の項目
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 完了条件
+      description: 画面やテストで確認できる条件を2〜4個書く
+      placeholder: '- [ ] 指定した操作をすると、期待する表示になる'
+    validations:
+      required: true
+  - type: textarea
+    id: questions
+    attributes:
+      label: 未決定事項・依存する作業
+      description: 仮案を正式仕様と区別する。関連Issueがあればリンクする
