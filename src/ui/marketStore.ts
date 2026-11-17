@@ -10,15 +10,22 @@ import {
   type MarketState,
   type Purchase,
 } from '../game/market';
+import { advanceNpcs, createNpc, type NpcState } from '../game/npc';
+import type { GameSettings } from '../game/settings';
+import type { Site3Viewing } from '../game/site3Pricing';
+import type { Participant, RoundScenario } from '../game/types';
 
 // 画面とゲーム処理をつなぐ、市場の置き場所。1ラウンドに1つだけ作り、全タブで共有する。
-// 判定はすべて src/game/market.ts が行い、ここは結果を保存して画面に知らせるだけ。
+// 判定はすべて src/game/ の処理が行い、ここは結果を保存して画面に知らせるだけ。
 // NPCも、この置き場所を通して同じ市場を操作する。
 
 export type MarketSnapshot = {
   market: MarketState;
   /** 購入した予約の入力内容。ラウンド終了時の判定に使う。 */
   entries: BookingEntry[];
+  npcs: NpcState[];
+  /** 便ごとの、サイト3の閲覧人数。 */
+  site3Viewers: Record<string, number>;
 };
 
 export type MarketStore = {
@@ -30,15 +37,34 @@ export type MarketStore = {
     request: Parameters<typeof purchase>[1],
     entry: BookingEntry,
   ) => MarketResult<Purchase>;
+  /** 人間がサイト3で開いている便（裏のタブも含む）を知らせる。 */
+  setHumanViewing: (participantId: string, flightIds: string[]) => void;
+  /** NPCを進め、サイト3の価格を閲覧人数に合わせる。画面の時計に合わせて呼ぶ。 */
+  tick: (now: number) => void;
   close: () => void;
 };
 
-export function createMarketStore(initial: MarketState): MarketStore {
-  let snapshot: MarketSnapshot = { market: initial, entries: [] };
+type StoreOptions = {
+  scenario: RoundScenario;
+  settings: GameSettings;
+  participants: Participant[];
+};
+
+export function createMarketStore(initial: MarketState, options: StoreOptions): MarketStore {
+  const { scenario, settings, participants } = options;
+  const npcs = participants
+    .filter((participant) => participant.kind === 'npc')
+    .map((participant, index) => createNpc(participant.id, index, initial, scenario, settings));
+
+  let snapshot: MarketSnapshot = { market: initial, entries: [], npcs, site3Viewers: {} };
+  let humanViewing: Site3Viewing = {};
   const listeners = new Set<() => void>();
 
   const update = (next: MarketSnapshot) => {
-    if (next.market === snapshot.market && next.entries === snapshot.entries) return;
+    const same = (Object.keys(next) as (keyof MarketSnapshot)[]).every(
+      (key) => next[key] === snapshot[key],
+    );
+    if (same) return;
     snapshot = next;
     listeners.forEach((listener) => listener());
   };
@@ -61,8 +87,29 @@ export function createMarketStore(initial: MarketState): MarketStore {
     },
     purchase: (request, entry) => {
       const result = purchase(snapshot.market, request);
-      if (result.ok) update({ market: result.state, entries: [...snapshot.entries, entry] });
+      if (result.ok) {
+        update({ ...snapshot, market: result.state, entries: [...snapshot.entries, entry] });
+      }
       return result;
+    },
+    setHumanViewing: (participantId, flightIds) => {
+      humanViewing = { ...humanViewing, [participantId]: flightIds };
+    },
+    tick: (now) => {
+      const next = advanceNpcs(snapshot.market, snapshot.npcs, humanViewing, participants.length, {
+        scenario,
+        settings,
+        now,
+      });
+      const viewersChanged =
+        JSON.stringify(next.site3Viewers) !== JSON.stringify(snapshot.site3Viewers);
+      const npcsChanged = next.npcs.some((npc, index) => npc !== snapshot.npcs[index]);
+      update({
+        ...snapshot,
+        market: next.market,
+        npcs: npcsChanged ? next.npcs : snapshot.npcs,
+        site3Viewers: viewersChanged ? next.site3Viewers : snapshot.site3Viewers,
+      });
     },
     close: () => {
       update({ ...snapshot, market: closeMarket(snapshot.market) });

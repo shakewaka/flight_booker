@@ -70,7 +70,7 @@ export function BookingPage({
   participantId,
   onBackToCompare,
 }: BookingPageProps) {
-  const { market } = useMarketSnapshot(store);
+  const { market, site3Viewers } = useMarketSnapshot(store);
   const [step, setStep] = useState<Step>('review');
   const [passenger, setPassenger] = useState<PassengerInput>(EMPTY_PASSENGER);
   const [payment, setPayment] = useState<PaymentInput>(EMPTY_PAYMENT);
@@ -79,7 +79,6 @@ export function BookingPage({
 
   const info = SITE_INFO[site];
   const flight = scenario.flights.find((candidate) => candidate.id === flightId);
-  if (!flight) return <p className="booking__empty">この便は見つかりませんでした。</p>;
 
   const hold = market.holds.find(
     (candidate) => candidate.participantId === participantId && candidate.procedureId === tabId,
@@ -90,6 +89,9 @@ export function BookingPage({
       : site === 'site2'
         ? (hold?.price ?? market.site2Price[flightId])
         : market.site3Price[flightId];
+
+  const trend = usePriceTrend(price);
+  if (!flight) return <p className="booking__empty">この便は見つかりませんでした。</p>;
 
   const cityOf = (code: string) => airportName(scenario.airports, code);
   const airlineOf = (id: string) => scenario.airlines.find((a) => a.id === id)?.name ?? id;
@@ -176,7 +178,12 @@ export function BookingPage({
         </div>
         <p className="booking__price">
           {formatYen(price)}
-          {site === 'site3' && <span className="booking__price-note">現在の価格</span>}
+          {site === 'site3' && (
+            <span className="booking__price-note">
+              {trend === 'up' ? '▲ 値上がり' : trend === 'down' ? '▼ 値下がり' : '現在の価格'}
+              ／いま{site3Viewers[flightId] ?? 0}人が閲覧中
+            </span>
+          )}
           {site === 'site2' && hold && <span className="booking__price-note">確保した価格</span>}
         </p>
       </section>
@@ -269,6 +276,21 @@ export function BookingPage({
       )}
     </div>
   );
+}
+
+/** 価格が前回から上がったか下がったか。変わるまでは前回の向きを保つ。 */
+function usePriceTrend(price: number): 'up' | 'down' | null {
+  const [seen, setSeen] = useState<{ price: number; trend: 'up' | 'down' | null }>({
+    price,
+    trend: null,
+  });
+  if (price !== seen.price) {
+    // 描画中に前回の価格と比べて覚え直す（React の「前回の値に合わせて状態を直す」書き方）。
+    const trend = price > seen.price ? 'up' : 'down';
+    setSeen({ price, trend });
+    return trend;
+  }
+  return seen.trend;
 }
 
 type FieldsProps<T extends Record<string, string>> = {

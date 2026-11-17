@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createParticipants } from './data/participants';
 import { sampleRound } from './data/sampleRound';
 import { createMarket } from './game/market';
 import { createRoundTimer, getRoundPhase, type RoundTimer } from './game/roundClock';
@@ -20,13 +21,23 @@ type Attempt = {
 
 function newAttempt(id: number): Attempt {
   const timer = createRoundTimer(performance.now(), prototypeSettings);
-  return { id, timer, store: createMarketStore(createMarket(sampleRound, timer)) };
+  const store = createMarketStore(createMarket(sampleRound, timer), {
+    scenario: sampleRound,
+    settings: prototypeSettings,
+    participants: createParticipants(prototypeSettings.npcCount),
+  });
+  return { id, timer, store };
 }
 
 export default function App() {
   const [attempt, setAttempt] = useState(() => newAttempt(0));
   const now = useNow(100);
   const closed = getRoundPhase(attempt.timer, now).kind === 'closed';
+
+  // 画面の時計が進むたびに、NPCを進めてサイト3の価格を更新する。
+  useEffect(() => {
+    attempt.store.tick(now);
+  }, [now, attempt.store]);
 
   // 締切になったら、残っている確保をすべて解放する。
   useEffect(() => {

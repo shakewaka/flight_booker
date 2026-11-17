@@ -17,6 +17,30 @@ export type PricingSettings = {
   site3MaxRate: number;
 };
 
+/** 仮：NPCの動き方。時間はすべて、NPCごとの速さの倍率（speed）を掛ける前の値。 */
+export type NpcSettings = {
+  /** 検索結果を見て、次の候補を決めるまでの時間。 */
+  thinkMs: { min: number; max: number };
+  /** 搭乗者情報（パスポートの6項目）の入力にかかる時間。 */
+  passengerInputMs: { min: number; max: number };
+  /** 決済情報（カードの4項目）の入力にかかる時間。 */
+  paymentInputMs: { min: number; max: number };
+  /** NPCごとの速さの倍率。小さいほど速い。 */
+  speed: { min: number; max: number };
+  /** サイト3の値下がりを待つNPCが、価格を見直す間隔。 */
+  priceCheckMs: number;
+  /** サイト3の値下がりを待つNPCが、待つのをやめる残り時間。 */
+  stopWaitingRemainingMs: number;
+  /** サイト3の値下がりを待つNPCが買う価格。価格の範囲のうち、下からこの割合までなら買う。 */
+  site3BuyBelowRate: number;
+};
+
+/** 仮：サイト3の価格と閲覧人数の関係。 */
+export type Site3Settings = {
+  /** 参加者のうち、この割合が閲覧すると価格が上限に達する。 */
+  fullPriceViewRate: number;
+};
+
 export type GameSettings = {
   /** 1試合のラウンド数。決定事項。 */
   roundCount: number;
@@ -31,6 +55,8 @@ export type GameSettings = {
   /** 仮：締切までに予約できなかった場合に、ラウンド最高値へ加える金額。 */
   timeoutPenalty: number;
   pricing: PricingSettings;
+  npc: NpcSettings;
+  site3: Site3Settings;
 };
 
 export const prototypeSettings: GameSettings = {
@@ -49,4 +75,15 @@ export const prototypeSettings: GameSettings = {
     site3MinRate: 1.05,
     site3MaxRate: 1.67,
   },
+  npc: {
+    thinkMs: { min: 2_000, max: 8_000 },
+    passengerInputMs: { min: 25_000, max: 60_000 },
+    paymentInputMs: { min: 15_000, max: 35_000 },
+    speed: { min: 0.7, max: 1.4 },
+    priceCheckMs: 3_000,
+    stopWaitingRemainingMs: 60_000,
+    site3BuyBelowRate: 0.3,
+  },
+  // 10人中5人が閲覧すると上限の価格になる。
+  site3: { fullPriceViewRate: 0.5 },
 };

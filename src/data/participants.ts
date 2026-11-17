@@ -1,7 +1,7 @@
 import type { Participant } from '../game/types';
 
 // NPC（コンピューターが操作する対戦相手）の表示名。すべて架空。
-// 行動の性格（急ぐ、慎重など）は、NPCを実装するときに決める。
+// 行動の型は src/game/npc.ts で、NPCの番号から決める。
 const NPC_NAMES = [
   'ミナト',
   'カエデ',

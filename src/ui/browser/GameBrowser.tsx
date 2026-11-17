@@ -1,4 +1,4 @@
-import { useCallback, useReducer, useState } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 import type { RoundScenario, SiteId } from '../../game/types';
 import type { MarketStore } from '../marketStore';
 import { BookingPage } from '../sites/booking/BookingPage';
@@ -66,6 +66,16 @@ export function GameBrowser({
       return { ...previous, [tabId]: { title, busy } };
     });
   }, []);
+
+  // サイト3で開いている便を、閲覧人数として市場に知らせる。表示していないタブも数える。
+  const site3Flights = state.tabs
+    .flatMap((tab) =>
+      tab.page.kind === 'booking' && tab.page.site === 'site3' ? [tab.page.flightId] : [],
+    )
+    .join(',');
+  useEffect(() => {
+    store.setHumanViewing(participantId, site3Flights ? site3Flights.split(',') : []);
+  }, [store, participantId, site3Flights]);
 
   const openBooking = (site: SiteId, flightId: string) =>
     dispatch({ type: 'open', page: { kind: 'booking', site, flightId } });
