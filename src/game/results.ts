@@ -1,15 +1,16 @@
 import type { BookingEntry } from './booking';
 import { judgeBooking, type InputMistake } from './judge';
 import type { MarketState } from './market';
-import { computePenalty, type PenaltyResult } from './penalty';
+import { computePenalty, RANK_TIER, type PenaltyResult } from './penalty';
 import { findTripViolations, type TripViolation } from './requirements';
 import type { PenaltySettings } from './settings';
 import type { Participant, RoundScenario, SiteId, Yen } from './types';
 
 // ラウンドの集計（企画書「11 ラウンド締切と集計」）。
 // 購入額・予約タイム・違反内容・減点を、別々の値として残す。
-// 集計金額は、購入額に減点（案C、src/game/penalty.ts）を足した額。ただし時間切れより悪くはしない。
-// 順位は、集計金額の小さい順、同額なら予約タイムの短い順、完全に同じなら同順位。
+// 集計金額は、条件を満たす予約なら購入額＋入力ミスの減点（上限は時間切れの金額）、
+// 条件違反のある予約ならラウンド最高値、旅行が成り立たない予約と未予約は時間切れの金額（src/game/penalty.ts）。
+// 順位は、集計金額の小さい順、同額なら段（正しい予約が上）、それも同じなら予約タイムの短い順。
 
 export type RoundResultRow = {
   participant: Participant;
@@ -33,7 +34,9 @@ export type RoundResultRow = {
   flightId: string | null;
   inputMistakes: InputMistake[];
   tripViolations: TripViolation[];
-  /** 順位。1から始まり、完全に同じ金額・タイムなら同じ順位になる。 */
+  /** 順位の段（src/game/penalty.ts の RANK_TIER）。同じ集計金額なら、段の小さい方が上。 */
+  tier: number;
+  /** 順位。1から始まり、金額・段・タイムが完全に同じなら同じ順位になる。 */
   rank: number;
 };
 
@@ -60,6 +63,7 @@ export function computeRoundResults(options: {
         penalty: null,
         amount: timeoutAmount,
         timeMs: limitMs,
+        tier: RANK_TIER.failed,
         site: null,
         flightId: null,
         inputMistakes: [],
@@ -84,8 +88,18 @@ export function computeRoundResults(options: {
       status: penalty.fatal ? 'void' : 'booked',
       purchasePrice: bought.price,
       penalty,
-      amount: penalty.fatal ? timeoutAmount : Math.min(timeoutAmount, bought.price + penalty.total),
+      // 旅行が成り立たなければ時間切れと同じ。条件違反なら最高値。それ以外は購入額＋入力ミスの減点。
+      amount: penalty.fatal
+        ? timeoutAmount
+        : penalty.violated
+          ? scenario.maxPrice
+          : Math.min(timeoutAmount, bought.price + penalty.total),
       timeMs: penalty.fatal ? limitMs : bought.bookingTimeMs,
+      tier: penalty.fatal
+        ? RANK_TIER.failed
+        : penalty.violated
+          ? RANK_TIER.violated
+          : RANK_TIER.valid,
       site: bought.site,
       flightId: bought.flightId,
       ...judgement,
@@ -95,22 +109,35 @@ export function computeRoundResults(options: {
   return rankRows(rows);
 }
 
-/** 集計金額の小さい順、同額なら集計タイムの短い順。完全に同じなら同順位にする。 */
-export function rankRows<T extends { amount: number; timeMs: number }>(
+/**
+ * 集計金額の小さい順。同額なら順位の段の小さい順（条件を満たす予約 → 条件違反 → 未予約）、
+ * それも同じなら集計タイムの短い順。完全に同じなら同順位にする。段がない行は0として扱う。
+ */
+export function rankRows<T extends { amount: number; timeMs: number; tier?: number }>(
   rows: T[],
 ): (T & { rank: number })[] {
   // 名前や参加者の番号のような、成績と関係のない値で順位を決めない。並びの順は元の順を保つ。
   const sorted = rows
     .map((row, index) => ({ row, index }))
     .sort(
-      (a, b) => a.row.amount - b.row.amount || a.row.timeMs - b.row.timeMs || a.index - b.index,
+      (a, b) =>
+        a.row.amount - b.row.amount ||
+        (a.row.tier ?? 0) - (b.row.tier ?? 0) ||
+        a.row.timeMs - b.row.timeMs ||
+        a.index - b.index,
     );
 
   return sorted.map(({ row }, position) => {
     let rank = position + 1;
     for (let i = position - 1; i >= 0; i -= 1) {
       const other = sorted[i].row;
-      if (other.amount !== row.amount || other.timeMs !== row.timeMs) break;
+      if (
+        other.amount !== row.amount ||
+        (other.tier ?? 0) !== (row.tier ?? 0) ||
+        other.timeMs !== row.timeMs
+      ) {
+        break;
+      }
       rank = i + 1;
     }
     return { ...row, rank };

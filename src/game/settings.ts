@@ -45,10 +45,11 @@ export type Site3Settings = {
   fullPriceViewRate: number;
 };
 
-/** 仮：減点の割合（案C）。ラウンド最高値に対する、違反1つあたりの割合。 */
+/**
+ * 仮：入力ミスの減点の割合。ラウンド最高値に対する、入力ミス1つあたりの割合。
+ * 条件違反は割合ではなく、集計金額をラウンド最高値にする（src/game/penalty.ts）。
+ */
 export type PenaltySettings = {
-  /** 条件違反（出発時刻、到着期限、運航会社、到着ターミナル、手荷物）。 */
-  violationRate: number;
   /** 本人確認の情報の入力ミス（姓、名、生年月日、国籍、パスポート番号、有効期限）。 */
   identityMistakeRate: number;
   /** カードの情報の入力ミス（名義、番号、有効期限、確認コード）。 */
@@ -93,10 +94,12 @@ export const prototypeSettings: GameSettings = {
     site3MaxRate: 1.67,
   },
   npc: {
-    thinkMs: { min: 2_000, max: 8_000 },
-    passengerInputMs: { min: 25_000, max: 60_000 },
-    paymentInputMs: { min: 15_000, max: 35_000 },
-    speed: { min: 0.7, max: 1.4 },
+    // プレイテストで「NPCが強すぎる」との声があり、急いだ人間（約120秒）と競る速さに遅くした。
+    // 幅を狭くして、遅いNPCも売り切れ後に選び直して時間内に買えるようにした。
+    thinkMs: { min: 4_000, max: 8_000 },
+    passengerInputMs: { min: 72_000, max: 88_000 },
+    paymentInputMs: { min: 36_000, max: 47_000 },
+    speed: { min: 0.92, max: 1.1 },
     priceCheckMs: 3_000,
     stopWaitingRemainingMs: 60_000,
     site3BuyBelowRate: 0.3,
@@ -105,6 +108,6 @@ export const prototypeSettings: GameSettings = {
   },
   // 10人中5人が閲覧すると上限の価格になる。
   site3: { fullPriceViewRate: 0.5 },
-  penalty: { violationRate: 0.2, identityMistakeRate: 0.1, paymentMistakeRate: 0.05 },
+  penalty: { identityMistakeRate: 0.1, paymentMistakeRate: 0.05 },
   earlyCloseRate: 0.75,
 };

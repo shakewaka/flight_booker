@@ -107,7 +107,11 @@ export function RoundResults({
                   {row.purchasePrice === null ? '—' : formatYen(row.purchasePrice)}
                 </td>
                 <td className="results__num results__penalty">
-                  {row.penalty && row.penalty.total > 0 ? `+${formatYen(row.penalty.total)}` : '—'}
+                  {row.penalty?.violated
+                    ? '最高値'
+                    : row.penalty && row.penalty.total > 0
+                      ? `+${formatYen(row.penalty.total)}`
+                      : '—'}
                 </td>
                 <td className="results__num results__amount">{formatYen(row.amount)}</td>
                 <td className="results__num">{formatTime(row.timeMs)}</td>
@@ -135,7 +139,7 @@ export function RoundResults({
                     <span className="results__item-amount">
                       {FATAL.includes(item.violation)
                         ? '旅行が成り立たないため、時間切れと同じ扱い'
-                        : `+${formatYen(item.amount)}`}
+                        : `条件違反のため、最高値（${formatYen(timeoutAmount)}）で集計`}
                     </span>
                   </li>
                 ) : (
@@ -156,8 +160,9 @@ export function RoundResults({
       )}
 
       <p className="results__note">
-        集計金額は購入額に減点を足した額で、時間切れの金額が上限です。減点は、条件違反1つにつき最高値の20%、本人確認の入力ミスは10%、カードの入力ミスは5%です（仮）。時間切れと、出発地・目的地・出発日の違う予約は、条件を満たす便の最高値（
-        {formatYen(timeoutAmount)}）で集計します。
+        集計金額は、条件を満たす予約なら購入額に入力ミスの減点（本人確認の情報は最高値の10%、カードの情報は5%。仮）を足した額です。条件違反のある予約は最高値（
+        {formatYen(timeoutAmount)}
+        ）で集計し、同じ金額なら正しい便の予約を上にします。時間切れと、出発地・目的地・出発日の違う予約も最高値で集計します。
       </p>
       <div className="results__actions">
         <button type="button" onClick={onNext} autoFocus>

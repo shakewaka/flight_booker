@@ -24,6 +24,7 @@ function round(values: Record<string, [number, number]>): RoundResultRow[] {
     status: 'booked',
     purchasePrice: values[participant.id][0],
     penalty: null,
+    tier: 0,
     amount: values[participant.id][0],
     timeMs: values[participant.id][1],
     site: 'site1',
