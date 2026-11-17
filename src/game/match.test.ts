@@ -148,3 +148,34 @@ describe('4ラウンドでのNPC', () => {
     },
   );
 });
+
+describe('ラウンドごとのNPCの動き', () => {
+  const participants = createParticipants(prototypeSettings.npcCount);
+  const npcsOf = (roundIndex: number) => {
+    const scenario = matchRounds[roundIndex];
+    const market = createMarket(scenario, createRoundTimer(0, prototypeSettings));
+    return participants
+      .filter((p) => p.kind === 'npc')
+      .map((p, index) => createNpc(p.id, index, market, scenario, prototypeSettings));
+  };
+
+  it('同じラウンドなら、何度作っても同じ速さになる', () => {
+    expect(npcsOf(1).map((npc) => npc.speed)).toEqual(npcsOf(1).map((npc) => npc.speed));
+  });
+
+  it('ラウンドが変わると、NPCの速さも変わる。型は試合を通して同じ', () => {
+    const first = npcsOf(0);
+    const second = npcsOf(1);
+    expect(second.map((npc) => npc.kind)).toEqual(first.map((npc) => npc.kind));
+    const changed = second.filter((npc, i) => npc.speed !== first[i].speed);
+    expect(changed.length).toBe(second.length);
+  });
+
+  it('4ラウンドすべてで同じNPCが最も速い、ということが起きない', () => {
+    const fastest = matchRounds.map((_, round) => {
+      const npcs = npcsOf(round);
+      return npcs.reduce((best, npc) => (npc.speed < best.speed ? npc : best)).id;
+    });
+    expect(new Set(fastest).size).toBeGreaterThan(1);
+  });
+});

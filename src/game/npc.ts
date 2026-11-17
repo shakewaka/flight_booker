@@ -28,6 +28,8 @@ export type NpcTarget = { flightId: string; site: SiteId; procedureId: string };
 export type NpcState = {
   id: string;
   kind: NpcKind;
+  /** 動きを決める元になる文字列。NPCの番号とラウンドから作り、ラウンドごとに動きを変える。 */
+  seed: string;
   /** 速さの倍率。小さいほど速い。 */
   speed: number;
   phase: 'searching' | 'passenger' | 'payment' | 'done' | 'gave-up';
@@ -58,7 +60,11 @@ const SITE_ORDER: Record<NpcKind, SiteId[]> = {
   explorer: ['site1', 'site2', 'site3'],
 };
 
-/** NPCを作る。型は番号の順に4種類をくり返し、速さは番号から決める。 */
+/**
+ * NPCを作る。型は番号の順に4種類をくり返す（試合を通して同じ）。
+ * 速さと入力の時間は、NPCの番号とラウンドから決める。同じラウンドなら毎回同じ動きになり、
+ * ラウンドが変われば変わる。
+ */
 export function createNpc(
   id: string,
   index: number,
@@ -67,10 +73,12 @@ export function createNpc(
   settings: GameSettings,
 ): NpcState {
   const kind = NPC_KINDS[index % NPC_KINDS.length];
-  const speed = pickInRange(`${id}|speed`, settings.npc.speed);
+  const seed = `${id}|${scenario.id}`;
+  const speed = pickInRange(`${seed}|speed`, settings.npc.speed);
   const npc: NpcState = {
     id,
     kind,
+    seed,
     speed,
     phase: 'searching',
     readyAt: 0,
@@ -89,7 +97,7 @@ export function createNpc(
 
 /** NPCごと・段階ごとに決まる時間。速さの倍率を掛ける。 */
 function durationOf(npc: NpcState, label: string, range: { min: number; max: number }): number {
-  return Math.round(pickInRange(`${npc.id}|${label}|${npc.attempt}`, range) * npc.speed);
+  return Math.round(pickInRange(`${npc.seed}|${label}|${npc.attempt}`, range) * npc.speed);
 }
 
 /** 条件メモを満たす便を、そのサイトの価格が安い順に並べる。 */
