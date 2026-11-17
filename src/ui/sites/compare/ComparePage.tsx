@@ -6,6 +6,8 @@ import {
   searchFlights,
   type SearchQuery,
 } from '../../../game/search';
+import { airportName } from '../../../game/airports';
+import { formatJapaneseDate } from '../../../game/dates';
 import type { RoundScenario } from '../../../game/types';
 import { formatRemaining } from '../../format';
 import { FlightCard } from './FlightCard';
@@ -84,7 +86,7 @@ export function ComparePage({ scenario, now, deadlineAt, searchRange }: CompareP
             <option value="">選択してください</option>
             {scenario.airports.map((airport) => (
               <option key={airport.code} value={airport.code}>
-                {airport.city}（{airport.code}）
+                {airport.code} {airport.name}
               </option>
             ))}
           </select>
@@ -98,7 +100,7 @@ export function ComparePage({ scenario, now, deadlineAt, searchRange }: CompareP
             <option value="">選択してください</option>
             {scenario.airports.map((airport) => (
               <option key={airport.code} value={airport.code}>
-                {airport.city}（{airport.code}）
+                {airport.code} {airport.name}
               </option>
             ))}
           </select>
@@ -150,7 +152,7 @@ export function ComparePage({ scenario, now, deadlineAt, searchRange }: CompareP
           <SearchOutcome scenario={scenario} search={search} now={now} deadlineAt={deadlineAt} />
         ) : (
           <p className="compare-results__hint">
-            条件メモを見ながら検索条件を入れてください。航空会社・到着時刻・到着ターミナルは検索では絞り込めないため、候補の詳細で確認します。
+            条件メモを見ながら検索条件を入れてください。航空会社・到着時刻・到着ターミナルは検索では絞り込めないため、候補の詳細で確認します。時刻はすべて現地時間です。
           </p>
         )}
       </section>
@@ -185,11 +187,10 @@ function SearchOutcome({ scenario, search, now, deadlineAt }: SearchOutcomeProps
   const results = searchFlights(scenario, search.query);
   const fetchedAt = formatRemaining(deadlineAt - progress.completedAt);
   const { query } = search;
-  const cityOf = (code: string) => scenario.airports.find((a) => a.code === code)?.city ?? code;
-  const [, month, day] = query.departureDate.split('-').map(Number);
+  const cityOf = (code: string) => airportName(scenario.airports, code);
   const searchedWith = [
     `${cityOf(query.originCode)} → ${cityOf(query.destinationCode)}`,
-    `${month}月${day}日`,
+    formatJapaneseDate(query.departureDate),
     query.checkedBaggageKg > 0 ? `手荷物${query.checkedBaggageKg}kg` : '手荷物なし',
     query.nonstopOnly ? '直行便のみ' : '経由地の指定なし',
   ].join(' ／ ');

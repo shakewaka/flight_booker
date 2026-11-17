@@ -2,9 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { sampleRound } from '../data/sampleRound';
 import { findScenarioProblems } from './scenario';
 import { prototypeSettings } from './settings';
-import type { FlightOffers, RoundScenario } from './types';
+import type { Flight, FlightOffers, RoundScenario } from './types';
 
 const participantCount = 1 + prototypeSettings.npcCount;
+const FLIGHT = 'HND-TSA-0910';
+
+function offerOf(flightId: string): FlightOffers {
+  const offer = sampleRound.offers.find((candidate) => candidate.flightId === flightId);
+  if (!offer) throw new Error(flightId);
+  return offer;
+}
 
 /** 1つの便の販売条件だけを書き換えた出題データを作る。 */
 function withOffer(flightId: string, change: Partial<FlightOffers>): RoundScenario {
@@ -16,38 +23,50 @@ function withOffer(flightId: string, change: Partial<FlightOffers>): RoundScenar
   };
 }
 
+/** 1つの便だけを書き換えた出題データを作る。 */
+function withFlight(flightId: string, change: Partial<Flight>): RoundScenario {
+  return {
+    ...sampleRound,
+    flights: sampleRound.flights.map((flight) =>
+      flight.id === flightId ? { ...flight, ...change } : flight,
+    ),
+  };
+}
+
 describe('findScenarioProblems', () => {
   it('用意した出題データは、仮の参加人数で問題なし', () => {
     expect(findScenarioProblems(sampleRound, participantCount)).toEqual([]);
   });
 
   it('サイト3の下限がサイト1と同額だと、問題として返す', () => {
-    const scenario = withOffer('HNU-HSO-0810', { site3: { minPrice: 18_000, maxPrice: 30_000 } });
+    const { site1, site3 } = offerOf(FLIGHT);
+    const scenario = withOffer(FLIGHT, { site3: { ...site3, minPrice: site1.price } });
     expect(findScenarioProblems(scenario, participantCount)).toEqual([
-      '便 HNU-HSO-0810：サイト3の下限がサイト1より高くない',
+      `便 ${FLIGHT}：サイト3の下限がサイト1より高くない`,
     ]);
   });
 
   it('サイト1がサイト2と同額だと、問題として返す', () => {
-    const scenario = withOffer('HNU-HSO-0810', { site2: { price: 18_000 } });
+    const { site1 } = offerOf(FLIGHT);
+    const scenario = withOffer(FLIGHT, { site2: { price: site1.price } });
     expect(findScenarioProblems(scenario, participantCount)).toEqual([
-      '便 HNU-HSO-0810：サイト1がサイト2より安くない',
+      `便 ${FLIGHT}：サイト1がサイト2より安くない`,
     ]);
   });
 
   it('サイト1の販売枠が座席数を超えると、問題として返す', () => {
-    const scenario = withOffer('HNU-HSO-0810', { site1: { price: 18_000, fareQuota: 7 } });
+    const { site1 } = offerOf(FLIGHT);
+    const scenario = withOffer(FLIGHT, { site1: { ...site1, fareQuota: 7 } });
     expect(findScenarioProblems(scenario, participantCount)).toEqual([
-      '便 HNU-HSO-0810：サイト1の販売枠が1〜座席数の範囲にない',
+      `便 ${FLIGHT}：サイト1の販売枠が1〜座席数の範囲にない`,
     ]);
   });
 
   it('ラウンド最高値を1円でも超える価格があると、問題として返す', () => {
-    const scenario = withOffer('HNU-HSO-1105', {
-      site3: { minPrice: 24_000, maxPrice: sampleRound.maxPrice + 1 },
-    });
+    const { site3 } = offerOf(FLIGHT);
+    const scenario = withOffer(FLIGHT, { site3: { ...site3, maxPrice: sampleRound.maxPrice + 1 } });
     expect(findScenarioProblems(scenario, participantCount)).toEqual([
-      '便 HNU-HSO-1105：ラウンド最高値を超える価格がある',
+      `便 ${FLIGHT}：ラウンド最高値を超える価格がある`,
     ]);
   });
 
@@ -62,10 +81,19 @@ describe('findScenarioProblems', () => {
   it('販売条件のない便があると、問題として返す', () => {
     const scenario: RoundScenario = {
       ...sampleRound,
-      offers: sampleRound.offers.filter((offer) => offer.flightId !== 'HNU-HSO-1320'),
+      offers: sampleRound.offers.filter((offer) => offer.flightId !== 'HND-TSA-1620'),
     };
     expect(findScenarioProblems(scenario, participantCount)).toEqual([
-      '便 HNU-HSO-1320：販売条件が0件ある（1件にする）',
+      '便 HND-TSA-1620：販売条件が0件ある（1件にする）',
     ]);
+  });
+
+  it('時差を考えると到着が出発より前になる便を、問題として返す', () => {
+    // 西行きは現地時刻が1時間戻る。羽田 09:10 発 → 台北 08:05 着は、時差を足しても -5分。
+    expect(findScenarioProblems(withFlight(FLIGHT, { arrivalTime: '08:05' }), 14)).toEqual([
+      `便 ${FLIGHT}：時差を考えると、到着が出発より前になっている`,
+    ]);
+    // 現地時刻では出発より前に見える 08:11 着でも、時差を足すと所要1分で、データとしては通る。
+    expect(findScenarioProblems(withFlight(FLIGHT, { arrivalTime: '08:11' }), 14)).toEqual([]);
   });
 });

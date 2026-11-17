@@ -1,5 +1,5 @@
 // ゲームで扱うデータの型。ReactやDOMに依存しない。
-// 人物・空港・航空会社・番号は、すべて架空のデータを入れる。
+// 人物・航空会社・予約サイト・番号は架空のデータを入れる。空港と都市は実在の名前を使う。
 
 /** 円。小数は使わない。 */
 export type Yen = number;
@@ -9,8 +9,15 @@ export type IsoDate = string;
 export type ClockTime = string;
 
 export type Airport = {
+  /** 3文字の空港コード。 */
   code: string;
-  city: string;
+  /** 表示名。例：東京（羽田） */
+  name: string;
+  /** 協定世界時（UTC）との時差（分）。日本は +540。 */
+  utcOffsetMinutes: number;
+  /** 緯度と経度。距離の計算に使う。 */
+  latitude: number;
+  longitude: number;
 };
 
 export type Airline = {
@@ -45,7 +52,9 @@ export type TripRequirements = {
   originCode: string;
   destinationCode: string;
   departureDate: IsoDate;
-  /** この時刻ちょうどの到着は条件を満たす。 */
+  /** 出発地の現地時間。この時刻ちょうどの出発は条件を満たす。 */
+  departAfter?: ClockTime;
+  /** 目的地の現地時間。この時刻ちょうどの到着は条件を満たす。 */
   arriveBy?: ClockTime;
   /** 必要な受託手荷物の重さ。0は手荷物の条件なし。 */
   checkedBaggageKg: number;
@@ -56,12 +65,20 @@ export type TripRequirements = {
 
 /** 条件メモに表示する文章。 */
 export type TripMemo = {
-  route: string;
+  /** 出発地と目的地の表示名。 */
+  origin: string;
+  destination: string;
+  /** 出発の日付と、出発してよい最も早い時刻（出発地の現地時間）。時刻の指定がなければ null。 */
+  departure: { date: string; after: string | null };
+  /** 到着の期限（目的地の現地時間）。例：2027年5月18日 と 17:00。期限がなければ null。 */
+  arrivalDeadline: { date: string; time: string } | null;
+  /** 発着以外の条件。 */
   conditions: string[];
 };
 
 /**
  * 比較サイトに出る候補の便。初期データは、出発日と同じ日に到着する便だけを扱う。
+ * 出発時刻は出発地の現地時間、到着時刻は目的地の現地時間で持つ。
  */
 export type Flight = {
   id: string;
@@ -114,8 +131,6 @@ export type RoundScenario = {
   passport: PassportData;
   card: PaymentCardData;
   requirements: TripRequirements;
-  /** 出発地から目的地までの、おおよその距離。価格帯を決めるのに使う。 */
-  distanceKm: number;
   airports: Airport[];
   airlines: Airline[];
   flights: Flight[];

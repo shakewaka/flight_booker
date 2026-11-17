@@ -22,7 +22,7 @@ export type GameSettings = {
   roundCount: number;
   /** 仮：NPCの人数。人間1人と合わせて10人。 */
   npcCount: number;
-  /** 仮：1ラウンドの制限時間。 */
+  /** 仮：1ラウンドの制限時間。企画書の180秒から、ユーザーの判断で300秒に変更した。 */
   roundTimeLimitMs: number;
   /** 仮：ラウンド開始前のカウント。予約タイムには含めない。 */
   startCountdownMs: number;
@@ -36,7 +36,7 @@ export type GameSettings = {
 export const prototypeSettings: GameSettings = {
   roundCount: 4,
   npcCount: 9,
-  roundTimeLimitMs: 180_000,
+  roundTimeLimitMs: 300_000,
   startCountdownMs: 10_000,
   searchDurationMs: { min: 20_000, max: 30_000 },
   timeoutPenalty: 0,

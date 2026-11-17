@@ -304,3 +304,10 @@
   color: #2f3a4a;
   font-size: 13px;
 }
+
+.flight-card__local {
+  margin-left: 0.8em;
+  color: #6b7686;
+  font-size: 12px;
+  font-weight: 400;
+}

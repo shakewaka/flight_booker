@@ -59,15 +59,16 @@
   letter-spacing: 0.08em;
 }
 
-.memo__route {
+/* 発着地の地名。蛍光ペンで線を引いたように見せる。 */
+.memo__place {
   margin: 0;
   font-size: 1.15em;
   font-weight: 700;
   line-height: calc(2em / 1.15);
+  white-space: nowrap;
 }
 
-/* 蛍光ペンで引いた線 */
-.memo__route span {
+.memo__marker {
   padding: 0 0.2em;
   background: linear-gradient(
     180deg,
@@ -75,6 +76,22 @@
     rgb(255 214 64 / 75%) 52% 92%,
     transparent 92%
   );
+}
+
+.memo__suffix {
+  margin-left: 0.3em;
+  font-size: 0.85em;
+}
+
+/* 発着の日時。地名より一段下げて書く。 */
+.memo__when {
+  margin: 0;
+  padding-left: 1em;
+  white-space: nowrap;
+}
+
+.memo__local {
+  font-size: 0.75em;
 }
 
 .memo__list {

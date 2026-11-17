@@ -9,8 +9,8 @@ import {
 } from './search';
 
 const query: SearchQuery = {
-  originCode: 'HNU',
-  destinationCode: 'HSO',
+  originCode: 'HND',
+  destinationCode: 'TSA',
   departureDate: '2027-05-18',
   nonstopOnly: false,
   checkedBaggageKg: 20,
@@ -20,7 +20,13 @@ const ids = (q: SearchQuery) => searchFlights(sampleRound, q).map((result) => re
 
 describe('searchFlights', () => {
   it('条件メモと合わない便も含めて、検索条件に合う便を安い順に返す', () => {
-    expect(ids(query)).toEqual(['HNU-HSO-1320', 'HNU-HSO-0925', 'HNU-HSO-0810', 'HNU-HSO-1105']);
+    expect(ids(query)).toEqual([
+      'HND-TSA-0705',
+      'HND-TSA-1620',
+      'HND-TSA-0925',
+      'HND-TSA-0910',
+      'HND-TSA-1105',
+    ]);
   });
 
   it('一覧の金額は、3サイトのうち最も安い価格になる', () => {
@@ -37,23 +43,28 @@ describe('searchFlights', () => {
       })),
     };
     const order = searchFlights(sameFare, query).map((result) => result.flight.departureTime);
-    expect(order).toEqual(['08:10', '09:25', '11:05', '13:20']);
+    expect(order).toEqual(['07:05', '09:10', '09:25', '11:05', '16:20']);
   });
 
   it('直行便だけを指定すると、乗継のある便を除く', () => {
-    expect(ids({ ...query, nonstopOnly: true })).not.toContain('HNU-HSO-0925');
-    expect(ids({ ...query, nonstopOnly: true })).toHaveLength(3);
+    expect(ids({ ...query, nonstopOnly: true })).not.toContain('HND-TSA-0925');
+    expect(ids({ ...query, nonstopOnly: true })).toHaveLength(4);
   });
 
   it('料金に含まれる手荷物と同じ重さまでは出し、1kgでも重いと出さない', () => {
-    expect(ids({ ...query, checkedBaggageKg: 20 })).toHaveLength(4);
+    expect(ids({ ...query, checkedBaggageKg: 20 })).toHaveLength(5);
     expect(ids({ ...query, checkedBaggageKg: 21 })).toEqual([]);
-    expect(ids({ ...query, checkedBaggageKg: 0 })).toHaveLength(4);
+    expect(ids({ ...query, checkedBaggageKg: 0 })).toHaveLength(5);
+  });
+
+  it('同じ都市でも、空港が違う便は出さない', () => {
+    expect(ids({ ...query, originCode: 'NRT', destinationCode: 'TPE' })).toEqual(['NRT-TPE-0950']);
+    expect(ids({ ...query, destinationCode: 'TPE' })).toEqual([]);
   });
 
   it('出発日や方向が違うと、便は見つからない', () => {
     expect(ids({ ...query, departureDate: '2027-05-19' })).toEqual([]);
-    expect(ids({ ...query, originCode: 'HSO', destinationCode: 'HNU' })).toEqual([]);
+    expect(ids({ ...query, originCode: 'TSA', destinationCode: 'HND' })).toEqual([]);
   });
 });
 
@@ -64,7 +75,7 @@ describe('findQueryError', () => {
 
   it('未選択の項目や、同じ出発地と目的地では検索できない', () => {
     expect(findQueryError({ ...query, originCode: '' })).not.toBeNull();
-    expect(findQueryError({ ...query, destinationCode: 'HNU' })).not.toBeNull();
+    expect(findQueryError({ ...query, destinationCode: 'HND' })).not.toBeNull();
     expect(findQueryError({ ...query, departureDate: '' })).not.toBeNull();
   });
 });

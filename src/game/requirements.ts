@@ -1,3 +1,5 @@
+import { airportName } from './airports';
+import { formatJapaneseDate } from './dates';
 import type { Airline, Airport, Flight, TripMemo, TripRequirements } from './types';
 
 /**
@@ -8,6 +10,7 @@ export type TripViolation =
   | 'origin'
   | 'destination'
   | 'departureDate'
+  | 'departureTime'
   | 'arrivalTime'
   | 'checkedBaggage'
   | 'operatingAirline'
@@ -24,6 +27,9 @@ export function findTripViolations(
   if (flight.destinationCode !== requirements.destinationCode) violations.push('destination');
   if (flight.departureDate !== requirements.departureDate) violations.push('departureDate');
   // HH:mm 同士は、文字列のまま比べても時刻の前後と一致する。
+  if (requirements.departAfter !== undefined && flight.departureTime < requirements.departAfter) {
+    violations.push('departureTime');
+  }
   if (requirements.arriveBy !== undefined && flight.arrivalTime > requirements.arriveBy) {
     violations.push('arrivalTime');
   }
@@ -50,14 +56,14 @@ export function describeRequirements(
   airports: Airport[],
   airlines: Airline[],
 ): TripMemo {
-  const cityOf = (code: string) => airports.find((airport) => airport.code === code)?.city ?? code;
   const airlineNameOf = (id: string) => airlines.find((airline) => airline.id === id)?.name ?? id;
-  const [, month, day] = requirements.departureDate.split('-').map(Number);
+  const date = formatJapaneseDate(requirements.departureDate);
+  const departure = { date, after: requirements.departAfter ?? null };
+  // 初期データは出発日と同じ日に到着する便だけなので、到着の期限も出発日の日付で書く。
+  const arrivalDeadline =
+    requirements.arriveBy === undefined ? null : { date, time: requirements.arriveBy };
 
-  const conditions = [`${month}月${day}日に出発`];
-  if (requirements.arriveBy !== undefined) {
-    conditions.push(`${requirements.arriveBy}までに到着`);
-  }
+  const conditions: string[] = [];
   if (requirements.checkedBaggageKg > 0) {
     conditions.push(`受託手荷物 ${requirements.checkedBaggageKg}kg が必要`);
   }
@@ -69,7 +75,10 @@ export function describeRequirements(
   }
 
   return {
-    route: `${cityOf(requirements.originCode)} → ${cityOf(requirements.destinationCode)}`,
+    origin: airportName(airports, requirements.originCode),
+    destination: airportName(airports, requirements.destinationCode),
+    departure,
+    arrivalDeadline,
     conditions,
   };
 }

@@ -1,21 +1,162 @@
+import { distanceKm } from '../game/airports';
 import { createFlightOffers, highestPrice } from '../game/pricing';
 import { prototypeSettings } from '../game/settings';
-import type { RoundScenario } from '../game/types';
+import type { Airport, Flight, RoundScenario } from '../game/types';
 
-// 1ラウンド分の出題データ。企画書「14 ラウンド例」と画面配置図の内容に合わせている。
-// 人物・国・空港・航空会社・番号は、すべて架空。
-// 便の数、座席数、販売枠、距離、便ごとの倍率は試作用の仮の値で、標準の価格を決めるものではない。
+// 1ラウンド分の出題データ。企画書「14 ラウンド例」の条件を、東京（羽田）発・台北（松山）行きの国際線に置き換えた。
+// 空港と都市は実在の名前を使う（docs/decisions.md）。人物・国・航空会社・番号は架空。
+// 便の時刻・座席数・販売枠・便ごとの倍率は試作用の仮の値で、実在の便や運賃ではない。
 
-/** 仮：羽之浦から星汐までの距離。 */
-const distanceKm = 1_000;
+/** 選択肢に出す空港。緯度・経度はおおよその値。 */
+const airports: Airport[] = [
+  {
+    code: 'HND',
+    name: '東京（羽田）',
+    utcOffsetMinutes: 540,
+    latitude: 35.5494,
+    longitude: 139.7798,
+  },
+  {
+    code: 'NRT',
+    name: '東京（成田）',
+    utcOffsetMinutes: 540,
+    latitude: 35.7647,
+    longitude: 140.3864,
+  },
+  {
+    code: 'TSA',
+    name: '台北（松山）',
+    utcOffsetMinutes: 480,
+    latitude: 25.0694,
+    longitude: 121.5519,
+  },
+  {
+    code: 'TPE',
+    name: '台北（桃園）',
+    utcOffsetMinutes: 480,
+    latitude: 25.0777,
+    longitude: 121.2328,
+  },
+  {
+    code: 'GMP',
+    name: 'ソウル（金浦）',
+    utcOffsetMinutes: 540,
+    latitude: 37.5583,
+    longitude: 126.7906,
+  },
+  { code: 'HKG', name: '香港', utcOffsetMinutes: 480, latitude: 22.308, longitude: 113.9185 },
+];
 
-// 価格は距離から計算する。fareLevel は便ごとの高い・安いを表す倍率。
-const offers = [
-  { flightId: 'HNU-HSO-0810', fareLevel: 1, fareQuota: 2 },
-  { flightId: 'HNU-HSO-0925', fareLevel: 0.89, fareQuota: 3 },
-  { flightId: 'HNU-HSO-1105', fareLevel: 1.28, fareQuota: 2 },
-  { flightId: 'HNU-HSO-1320', fareLevel: 0.86, fareQuota: 3 },
-].map((fare) => createFlightOffers({ ...fare, distanceKm }, prototypeSettings.pricing));
+/** 出発・到着の時刻は、それぞれの空港の現地時間。 */
+const flights: Flight[] = [
+  {
+    // 最も安いが、09:00より前に出発するため条件に合わない。
+    id: 'HND-TSA-0705',
+    sellingAirlineId: 'A',
+    operatingAirlineId: 'A',
+    originCode: 'HND',
+    destinationCode: 'TSA',
+    departureDate: '2027-05-18',
+    departureTime: '07:05',
+    arrivalTime: '09:40',
+    arrivalTerminal: 1,
+    stops: 0,
+    checkedBaggageKg: 20,
+    seats: 8,
+  },
+  {
+    // 条件を満たす。
+    id: 'HND-TSA-0910',
+    sellingAirlineId: 'A',
+    operatingAirlineId: 'A',
+    originCode: 'HND',
+    destinationCode: 'TSA',
+    departureDate: '2027-05-18',
+    departureTime: '09:10',
+    arrivalTime: '11:45',
+    arrivalTerminal: 1,
+    stops: 0,
+    checkedBaggageKg: 20,
+    seats: 6,
+  },
+  {
+    // 安く見えるが、運航会社と到着ターミナルが条件に合わない。
+    id: 'HND-TSA-0925',
+    sellingAirlineId: 'B',
+    operatingAirlineId: 'C',
+    originCode: 'HND',
+    destinationCode: 'TSA',
+    departureDate: '2027-05-18',
+    departureTime: '09:25',
+    arrivalTime: '14:10',
+    arrivalTerminal: 2,
+    stops: 1,
+    checkedBaggageKg: 20,
+    seats: 8,
+  },
+  {
+    // 条件を満たす。高いが、座席が多い。
+    id: 'HND-TSA-1105',
+    sellingAirlineId: 'D',
+    operatingAirlineId: 'D',
+    originCode: 'HND',
+    destinationCode: 'TSA',
+    departureDate: '2027-05-18',
+    departureTime: '11:05',
+    arrivalTime: '13:40',
+    arrivalTerminal: 1,
+    stops: 0,
+    checkedBaggageKg: 20,
+    seats: 8,
+  },
+  {
+    // 安く見えるが、現地17:00より後に着くため条件に合わない。
+    id: 'HND-TSA-1620',
+    sellingAirlineId: 'A',
+    operatingAirlineId: 'A',
+    originCode: 'HND',
+    destinationCode: 'TSA',
+    departureDate: '2027-05-18',
+    departureTime: '16:20',
+    arrivalTime: '18:55',
+    arrivalTerminal: 1,
+    stops: 0,
+    checkedBaggageKg: 20,
+    seats: 8,
+  },
+  {
+    // 成田発・桃園行き。空港を取り違えて検索すると、これが安く見える。
+    id: 'NRT-TPE-0950',
+    sellingAirlineId: 'B',
+    operatingAirlineId: 'B',
+    originCode: 'NRT',
+    destinationCode: 'TPE',
+    departureDate: '2027-05-18',
+    departureTime: '09:50',
+    arrivalTime: '12:35',
+    arrivalTerminal: 1,
+    stops: 0,
+    checkedBaggageKg: 20,
+    seats: 8,
+  },
+];
+
+// 価格は、出発地と目的地の距離から計算する。fareLevel は便ごとの高い・安いを表す倍率。
+const fares = [
+  { flightId: 'HND-TSA-0705', fareLevel: 0.84, fareQuota: 3 },
+  { flightId: 'HND-TSA-0910', fareLevel: 1, fareQuota: 2 },
+  { flightId: 'HND-TSA-0925', fareLevel: 0.89, fareQuota: 3 },
+  { flightId: 'HND-TSA-1105', fareLevel: 1.28, fareQuota: 2 },
+  { flightId: 'HND-TSA-1620', fareLevel: 0.86, fareQuota: 3 },
+  { flightId: 'NRT-TPE-0950', fareLevel: 0.8, fareQuota: 3 },
+];
+
+const offers = fares.map((fare) => {
+  const flight = flights.find((candidate) => candidate.id === fare.flightId);
+  if (!flight) throw new Error(`便がありません：${fare.flightId}`);
+  const km = distanceKm(airports, flight.originCode, flight.destinationCode);
+  return createFlightOffers({ ...fare, distanceKm: km }, prototypeSettings.pricing);
+});
 
 export const sampleRound: RoundScenario = {
   id: 'sample-round',
@@ -35,91 +176,23 @@ export const sampleRound: RoundScenario = {
     securityCode: '417',
   },
   requirements: {
-    originCode: 'HNU',
-    destinationCode: 'HSO',
+    originCode: 'HND',
+    destinationCode: 'TSA',
     departureDate: '2027-05-18',
+    departAfter: '09:00',
     arriveBy: '17:00',
     checkedBaggageKg: 20,
     excludedOperatingAirlineIds: ['C'],
     arrivalTerminal: 1,
   },
-  distanceKm,
-  airports: [
-    { code: 'HNU', city: '羽之浦' },
-    { code: 'HSO', city: '星汐' },
-    // 選択肢を増やすための空港。このラウンドの便はない。
-    { code: 'HBN', city: '雲雀野' },
-    { code: 'TKS', city: '月ヶ瀬' },
-    { code: 'ARM', city: '青嶺' },
-  ],
+  airports,
   airlines: [
     { id: 'A', name: '航空会社A' },
     { id: 'B', name: '航空会社B' },
     { id: 'C', name: '航空会社C' },
     { id: 'D', name: '航空会社D' },
   ],
-  flights: [
-    {
-      // 条件を満たす。
-      id: 'HNU-HSO-0810',
-      sellingAirlineId: 'A',
-      operatingAirlineId: 'A',
-      originCode: 'HNU',
-      destinationCode: 'HSO',
-      departureDate: '2027-05-18',
-      departureTime: '08:10',
-      arrivalTime: '12:30',
-      arrivalTerminal: 1,
-      stops: 0,
-      checkedBaggageKg: 20,
-      seats: 6,
-    },
-    {
-      // 最も安く見えるが、運航会社と到着ターミナルが条件に合わない。
-      id: 'HNU-HSO-0925',
-      sellingAirlineId: 'B',
-      operatingAirlineId: 'C',
-      originCode: 'HNU',
-      destinationCode: 'HSO',
-      departureDate: '2027-05-18',
-      departureTime: '09:25',
-      arrivalTime: '15:40',
-      arrivalTerminal: 2,
-      stops: 1,
-      checkedBaggageKg: 20,
-      seats: 8,
-    },
-    {
-      // 条件を満たす。高いが、座席が多い。
-      id: 'HNU-HSO-1105',
-      sellingAirlineId: 'D',
-      operatingAirlineId: 'D',
-      originCode: 'HNU',
-      destinationCode: 'HSO',
-      departureDate: '2027-05-18',
-      departureTime: '11:05',
-      arrivalTime: '16:50',
-      arrivalTerminal: 1,
-      stops: 0,
-      checkedBaggageKg: 20,
-      seats: 8,
-    },
-    {
-      // 到着が17:00を過ぎるため、条件に合わない。
-      id: 'HNU-HSO-1320',
-      sellingAirlineId: 'A',
-      operatingAirlineId: 'A',
-      originCode: 'HNU',
-      destinationCode: 'HSO',
-      departureDate: '2027-05-18',
-      departureTime: '13:20',
-      arrivalTime: '17:35',
-      arrivalTerminal: 1,
-      stops: 0,
-      checkedBaggageKg: 20,
-      seats: 8,
-    },
-  ],
+  flights,
   offers,
   maxPrice: highestPrice(offers),
 };

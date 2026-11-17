@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { airportName, flightDurationMinutes } from '../../../game/airports';
 import type { SearchResult } from '../../../game/search';
 import type { RoundScenario, SiteId } from '../../../game/types';
 import { formatYen } from '../../format';
@@ -20,7 +21,8 @@ export function FlightCard({ result, scenario }: FlightCardProps) {
   const [showPrices, setShowPrices] = useState(false);
   const { flight, offers } = result;
 
-  const cityOf = (code: string) => scenario.airports.find((a) => a.code === code)?.city ?? code;
+  const cityOf = (code: string) => airportName(scenario.airports, code);
+  const duration = flightDurationMinutes(scenario.airports, flight);
   const airlineOf = (id: string) => scenario.airlines.find((a) => a.id === id)?.name ?? id;
   const priceText: Record<SiteId, string> = {
     site1: formatYen(offers.site1.price),
@@ -38,6 +40,7 @@ export function FlightCard({ result, scenario }: FlightCardProps) {
           </span>
           <span className="visually-hidden">から</span>
           {flight.arrivalTime} {cityOf(flight.destinationCode)}
+          <span className="flight-card__local">現地時間</span>
         </p>
         <p className="flight-card__summary">
           {airlineOf(flight.sellingAirlineId)} ／{' '}
@@ -45,6 +48,12 @@ export function FlightCard({ result, scenario }: FlightCardProps) {
           {flight.checkedBaggageKg > 0 ? `${flight.checkedBaggageKg}kg込み` : 'なし'}
         </p>
         <dl className="flight-card__details">
+          <div>
+            <dt>所要時間</dt>
+            <dd>
+              {Math.floor(duration / 60)}時間{duration % 60}分
+            </dd>
+          </div>
           <div>
             <dt>運航</dt>
             <dd>{airlineOf(flight.operatingAirlineId)}</dd>

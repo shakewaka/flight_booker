@@ -31,9 +31,31 @@ export function MemoPad({ memo, concealed }: MemoPadProps) {
 function MemoBody({ memo }: { memo: TripMemo }) {
   return (
     <>
-      <p className="memo__route">
-        <span>{memo.route}</span>
+      {/* 発着地は、地名の行と日時の行を2行ずつ書く。 */}
+      <p className="memo__place">
+        <span className="memo__marker">{memo.origin}</span>
+        <span className="memo__suffix">発</span>
       </p>
+      <p className="memo__when">{memo.departure.date}</p>
+      {memo.departure.after && (
+        <p className="memo__when">
+          {memo.departure.after}以降に出発
+          <span className="memo__local">（現地時間）</span>
+        </p>
+      )}
+      <p className="memo__place">
+        <span className="memo__marker">{memo.destination}</span>
+        <span className="memo__suffix">着</span>
+      </p>
+      {memo.arrivalDeadline && (
+        <>
+          <p className="memo__when">{memo.arrivalDeadline.date}</p>
+          <p className="memo__when">
+            {memo.arrivalDeadline.time}までに到着
+            <span className="memo__local">（現地時間）</span>
+          </p>
+        </>
+      )}
       <ul className="memo__list">
         {memo.conditions.map((condition) => (
           <li key={condition}>{condition}</li>
