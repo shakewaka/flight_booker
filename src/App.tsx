@@ -3,10 +3,10 @@ import { createParticipants } from './data/participants';
 import { matchRounds } from './data/rounds';
 import { createMarket } from './game/market';
 import type { RoundResultRow } from './game/results';
-import { createRoundTimer, getRoundPhase, type RoundTimer } from './game/roundClock';
+import { createRoundTimer, getRoundPhase } from './game/roundClock';
 import { prototypeSettings } from './game/settings';
 import type { Participant } from './game/types';
-import { createMarketStore, type MarketStore } from './ui/marketStore';
+import { createMarketStore, useMarketSnapshot, type MarketStore } from './ui/marketStore';
 import { useNow } from './ui/useNow';
 import { Workspace } from './ui/workspace/Workspace';
 
@@ -22,7 +22,6 @@ type Match = {
   roundIndex: number;
   /** 終了したラウンドの結果。 */
   finished: RoundResultRow[][];
-  timer: RoundTimer;
   /** このラウンドの市場。 */
   store: MarketStore;
 };
@@ -35,12 +34,14 @@ function startRound(
 ): Match {
   const scenario = matchRounds[roundIndex];
   const timer = createRoundTimer(performance.now(), prototypeSettings);
-  const store = createMarketStore(createMarket(scenario, timer), {
+  // 参加者の75%が予約した時点で締め切る（10人なら8人）。
+  const closeWhenPurchased = Math.ceil(participants.length * prototypeSettings.earlyCloseRate);
+  const store = createMarketStore(createMarket(scenario, timer, { closeWhenPurchased }), {
     scenario,
     settings: prototypeSettings,
     participants,
   });
-  return { key, participants, roundIndex, finished, timer, store };
+  return { key, participants, roundIndex, finished, store };
 }
 
 function startMatch(key: number): Match {
@@ -50,7 +51,9 @@ function startMatch(key: number): Match {
 export default function App() {
   const [match, setMatch] = useState(() => startMatch(0));
   const now = useNow(100);
-  const closed = getRoundPhase(match.timer, now).kind === 'closed';
+  // 締切は市場が持つ。早めの締切が起きると、市場の時計の締切が早まる。
+  const { market } = useMarketSnapshot(match.store);
+  const closed = getRoundPhase(market.timer, now).kind === 'closed';
 
   // 画面の時計が進むたびに、NPCを進めてサイト3の価格を更新する。
   useEffect(() => {
@@ -75,7 +78,6 @@ export default function App() {
       roundCount={matchRounds.length}
       finishedRounds={match.finished}
       searchRange={prototypeSettings.searchDurationMs}
-      timer={match.timer}
       now={now}
       onNextRound={(rows) =>
         setMatch((previous) =>

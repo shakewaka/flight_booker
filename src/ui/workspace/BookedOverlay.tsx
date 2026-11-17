@@ -12,6 +12,11 @@ type BookedOverlayProps = {
   purchase: Purchase;
   entry: BookingEntry | undefined;
   remainingMs: number;
+  /** 予約を終えた参加者の数（自分を含む）。 */
+  purchasedCount: number;
+  participantCount: number;
+  /** この人数が予約した時点で締め切る。締め切らないなら null。 */
+  closeWhenPurchased: number | null;
 };
 
 /** 予約タイムを「1分23.45秒」の形にする。計測はミリ秒、表示は小数第2位まで。 */
@@ -26,7 +31,15 @@ function formatBookingTime(ms: number): string {
  * 全体を半透明のグレーで覆い、中央にチケット、画面全体の右下に購入金額を大きく出す。
  * この時点では、入力ミスや条件違反の有無は表示しない。
  */
-export function BookedOverlay({ scenario, purchase, entry, remainingMs }: BookedOverlayProps) {
+export function BookedOverlay({
+  scenario,
+  purchase,
+  entry,
+  remainingMs,
+  purchasedCount,
+  participantCount,
+  closeWhenPurchased,
+}: BookedOverlayProps) {
   const flight = scenario.flights.find((candidate) => candidate.id === purchase.flightId);
   const cityOf = (code: string) => airportName(scenario.airports, code);
   const passengerName = entry
@@ -72,6 +85,34 @@ export function BookedOverlay({ scenario, purchase, entry, remainingMs }: Booked
           </div>
         </dl>
       </article>
+      <div className="booked__progress" role="status" aria-live="polite">
+        <p className="booked__count">
+          予約済み <strong>{purchasedCount}</strong> / {participantCount}人
+        </p>
+        {closeWhenPurchased !== null && (
+          <p className="booked__close-at">
+            {closeWhenPurchased}人が予約した時点で締め切ります（あと
+            {Math.max(0, closeWhenPurchased - purchasedCount)}人）
+          </p>
+        )}
+        <div
+          className="booked__bar"
+          role="img"
+          aria-label={`${participantCount}人中${purchasedCount}人が予約済み`}
+        >
+          {Array.from({ length: participantCount }, (_, index) => (
+            <span
+              key={index}
+              className={[
+                index < purchasedCount ? 'booked__seat booked__seat--done' : 'booked__seat',
+                closeWhenPurchased !== null && index === closeWhenPurchased - 1
+                  ? 'booked__seat--line'
+                  : '',
+              ].join(' ')}
+            />
+          ))}
+        </div>
+      </div>
       <p className="booked__wait">
         予約が完了しました。ほかの参加者は締切までプレイを続けます（残り{' '}
         {formatRemaining(remainingMs)}）。

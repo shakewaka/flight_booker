@@ -137,3 +137,58 @@
   letter-spacing: 0.1em;
   opacity: 0.8;
 }
+
+/* 予約を終えた人数。人数分の丸を並べ、締切になる人数の位置に印を付ける。 */
+.booked__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  padding: 12px 22px;
+  border-radius: 12px;
+  background: rgb(15 20 30 / 70%);
+}
+
+.booked__count {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.booked__count strong {
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+.booked__close-at {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.booked__bar {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.booked__seat {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgb(255 255 255 / 55%);
+  border-radius: 50%;
+}
+
+.booked__seat--done {
+  border-color: #6fcf97;
+  background: #27ae60;
+}
+
+/* 締切になる人数の位置 */
+.booked__seat--line::after {
+  position: absolute;
+  top: -6px;
+  right: -5px;
+  bottom: -6px;
+  border-right: 2px dashed #ffd54a;
+  content: '';
+}

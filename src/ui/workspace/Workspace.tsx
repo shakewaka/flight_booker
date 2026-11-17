@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { purchaseOf } from '../../game/market';
+import { closedEarly, purchaseOf } from '../../game/market';
 import { computeStandings } from '../../game/match';
 import { describeRequirements } from '../../game/requirements';
 import { computeRoundResults, type RoundResultRow } from '../../game/results';
-import { getRoundPhase, type RoundTimer } from '../../game/roundClock';
+import { getRoundPhase } from '../../game/roundClock';
 import type { PenaltySettings } from '../../game/settings';
 import type { Participant, RoundScenario } from '../../game/types';
 import { GameBrowser } from '../browser/GameBrowser';
@@ -34,7 +34,6 @@ type WorkspaceProps = {
   /** 終了したラウンドの結果。総合順位に使う。 */
   finishedRounds: RoundResultRow[][];
   searchRange: { min: number; max: number };
-  timer: RoundTimer;
   now: number;
   /** このラウンドの結果を確定して、次のラウンドへ進む。 */
   onNextRound: (rows: RoundResultRow[]) => void;
@@ -53,27 +52,24 @@ export function Workspace({
   roundCount,
   finishedRounds,
   searchRange,
-  timer,
   now,
   onNextRound,
   onRestartMatch,
 }: WorkspaceProps) {
   // 締切後に、ラウンド結果と総合順位のどちらを見せているか。
   const [showStandings, setShowStandings] = useState(false);
+  // 締切は市場が持つ。参加者の75%が予約すると、締切が早まる。
+  const { market, entries } = useMarketSnapshot(store);
+  const timer = market.timer;
   const phase = getRoundPhase(timer, now);
   const memo = describeRequirements(scenario.requirements, scenario.airports, scenario.airlines);
   // カウント中は資料の中身を描画しない。締切後は操作だけを止め、資料は読めるままにする。
   const concealed = phase.kind === 'countdown';
   // 予約が完了した人は、締切を待たずに操作を終える。
-  const { market, entries } = useMarketSnapshot(store);
   const bought = purchaseOf(market, participantId);
   const locked = phase.kind !== 'playing' || bought !== undefined;
   const remainingMs =
-    phase.kind === 'playing'
-      ? phase.remainingMs
-      : phase.kind === 'closed'
-        ? 0
-        : timer.deadlineAt - timer.startAt;
+    phase.kind === 'playing' ? phase.remainingMs : phase.kind === 'closed' ? 0 : market.limitMs;
 
   // 締切後の市場は変わらないので、毎回計算しても同じ結果になる。
   function closedView() {
@@ -90,6 +86,7 @@ export function Workspace({
         <RoundResults
           rows={rows}
           timeoutAmount={scenario.maxPrice + timeoutPenalty}
+          closedEarlyBy={closedEarly(market) ? market.closeWhenPurchased : null}
           playerId={participantId}
           roundNumber={roundNumber}
           roundCount={roundCount}
@@ -139,6 +136,9 @@ export function Workspace({
               entry.participantId === participantId && entry.procedureId === bought.procedureId,
           )}
           remainingMs={remainingMs}
+          purchasedCount={market.purchases.length}
+          participantCount={participants.length}
+          closeWhenPurchased={market.closeWhenPurchased}
         />
       )}
       <RoundOverlay

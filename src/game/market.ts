@@ -11,6 +11,7 @@ import type { RoundScenario, SiteId, Yen } from './types';
 // - 1人が何枠でも確保できる。同じ手続きの確保をくり返しても、別の確保として数えない。
 // - 購入は1人1ラウンド1件。購入した瞬間に、本人の他の確保を解放する。購入済みの席は解放しない。
 // - 締切以降は、確保も購入もできない。
+// - 決めた人数が購入した時点で、締切をその時刻に早める（ユーザーの決定。参加者の75%）。
 
 export type Hold = {
   id: string;
@@ -33,7 +34,12 @@ export type Purchase = {
 };
 
 export type MarketState = {
+  /** ラウンドの時計。早めの締切が起きると、deadlineAt がその時刻に早まる。 */
   timer: RoundTimer;
+  /** もともとの制限時間。早めに締め切っても変わらない。時間切れの集計タイムに使う。 */
+  limitMs: number;
+  /** この人数が購入した時点で締め切る。締め切らないなら null。 */
+  closeWhenPurchased: number | null;
   /** 便ごとの物理的な座席数。 */
   seats: Record<string, number>;
   /** 便ごとの、サイト1の最安料金で売れる上限数。 */
@@ -68,12 +74,18 @@ export type MarketResult<T> =
   | { ok: false; state: MarketState; reason: MarketRefusal };
 
 /** 出題データから、そのラウンドの市場を作る。 */
-export function createMarket(scenario: RoundScenario, timer: RoundTimer): MarketState {
+export function createMarket(
+  scenario: RoundScenario,
+  timer: RoundTimer,
+  options: { closeWhenPurchased?: number } = {},
+): MarketState {
   const byFlight = <T>(pick: (offer: RoundScenario['offers'][number]) => T) =>
     Object.fromEntries(scenario.offers.map((offer) => [offer.flightId, pick(offer)]));
 
   return {
     timer,
+    limitMs: timer.deadlineAt - timer.startAt,
+    closeWhenPurchased: options.closeWhenPurchased ?? null,
     seats: Object.fromEntries(scenario.flights.map((flight) => [flight.id, flight.seats])),
     site1Quota: byFlight((offer) => offer.site1.fareQuota),
     site1Price: byFlight((offer) => offer.site1.price),
@@ -223,9 +235,32 @@ export function purchase(
 
   return {
     ok: true,
-    state: { ...market, holds, purchases: [...market.purchases, bought] },
+    state: closeIfEnoughPurchased(
+      { ...market, holds, purchases: [...market.purchases, bought] },
+      now,
+    ),
     value: bought,
   };
+}
+
+/** 決めた人数が購入していたら、締切を今の時刻に早める。 */
+function closeIfEnoughPurchased(market: MarketState, now: number): MarketState {
+  const limit = market.closeWhenPurchased;
+  if (limit === null || market.purchases.length < limit || market.timer.deadlineAt <= now) {
+    return market;
+  }
+  return { ...market, timer: { ...market.timer, deadlineAt: now } };
+}
+
+/** 早めの締切が起きたかどうか。 */
+export function closedEarly(market: MarketState): boolean {
+  return market.timer.deadlineAt - market.timer.startAt < market.limitMs;
+}
+
+/** 締切までに購入が必要な人数のうち、まだ残っている人数。早めに締め切らないなら null。 */
+export function purchasesUntilClose(market: MarketState): number | null {
+  if (market.closeWhenPurchased === null) return null;
+  return Math.max(0, market.closeWhenPurchased - market.purchases.length);
 }
 
 /** ラウンドの終了。残っている確保をすべて解放する。購入済みの席はそのまま残る。 */

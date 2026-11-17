@@ -72,6 +72,8 @@ export type GameSettings = {
   npc: NpcSettings;
   site3: Site3Settings;
   penalty: PenaltySettings;
+  /** 参加者のうち、この割合が予約した時点でラウンドを締め切る（ユーザーの決定。2026年11月17日）。 */
+  earlyCloseRate: number;
 };
 
 export const prototypeSettings: GameSettings = {
@@ -104,4 +106,5 @@ export const prototypeSettings: GameSettings = {
   // 10人中5人が閲覧すると上限の価格になる。
   site3: { fullPriceViewRate: 0.5 },
   penalty: { violationRate: 0.2, identityMistakeRate: 0.1, paymentMistakeRate: 0.05 },
+  earlyCloseRate: 0.75,
 };

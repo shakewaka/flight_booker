@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { sampleRound } from '../data/sampleRound';
 import {
   availableSeats,
+  closedEarly,
   closeMarket,
   createMarket,
   placeHold,
   purchase,
   purchaseOf,
+  purchasesUntilClose,
   releaseHold,
   site1FareRemaining,
   type MarketResult,
@@ -266,5 +268,60 @@ describe('締切', () => {
     expect(market.holds).toEqual([]);
     expect(market.purchases).toHaveLength(1);
     expect(availableSeats(market, 'F')).toBe(4);
+  });
+});
+
+describe('早めの締切', () => {
+  /** 指定した人数が購入したら締め切る、座席の多い市場。 */
+  const closingMarket = (closeWhenPurchased: number) => {
+    const scenario = {
+      ...sampleRound,
+      flights: [{ ...sampleRound.flights[0], id: 'F', seats: 10 }],
+    };
+    const offers = [
+      {
+        flightId: 'F',
+        site1: { price: 10_000, fareQuota: 10 },
+        site2: { price: 13_000 },
+        site3: { minPrice: 11_000, maxPrice: 18_000 },
+      },
+    ];
+    return createMarket({ ...scenario, offers }, timer, { closeWhenPurchased });
+  };
+
+  it('決めた人数の1人前までは締め切らない', () => {
+    let market = closingMarket(3);
+    market = ok(buy(market, 'A', 'site1', 'a', 30_000));
+    market = ok(buy(market, 'B', 'site1', 'b', 40_000));
+    expect(market.timer.deadlineAt).toBe(DEADLINE);
+    expect(purchasesUntilClose(market)).toBe(1);
+    expect(closedEarly(market)).toBe(false);
+  });
+
+  it('決めた人数が購入した時刻で締め切り、それ以降は確保も購入もできない', () => {
+    let market = closingMarket(2);
+    market = ok(buy(market, 'A', 'site1', 'a', 30_000));
+    market = ok(buy(market, 'B', 'site1', 'b', 40_000));
+    expect(market.timer.deadlineAt).toBe(40_000);
+    expect(closedEarly(market)).toBe(true);
+    expect(purchasesUntilClose(market)).toBe(0);
+
+    const late = buy(market, 'C', 'site1', 'c', 40_000);
+    expect(!late.ok && late.reason).toBe('closed');
+    const held = hold(market, 'C', 'c-1', 40_001);
+    expect(!held.ok && held.reason).toBe('closed');
+  });
+
+  it('早めに締め切っても、もともとの制限時間は変わらない', () => {
+    let market = closingMarket(1);
+    market = ok(buy(market, 'A', 'site1', 'a', 30_000));
+    expect(market.limitMs).toBe(300_000);
+  });
+
+  it('人数を決めなければ、何人買っても締切は変わらない', () => {
+    let market = smallMarket(10, 10);
+    for (const id of ['A', 'B', 'C', 'D', 'E']) market = ok(buy(market, id, 'site1', id, 30_000));
+    expect(market.timer.deadlineAt).toBe(DEADLINE);
+    expect(purchasesUntilClose(market)).toBeNull();
   });
 });

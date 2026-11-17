@@ -46,7 +46,8 @@ export function computeRoundResults(options: {
   penaltySettings: PenaltySettings;
 }): RoundResultRow[] {
   const { participants, market, entries, scenario, timeoutPenalty, penaltySettings } = options;
-  const limitMs = market.timer.deadlineAt - market.timer.startAt;
+  // 早めに締め切っても、時間切れの集計タイムはもともとの制限時間にする。
+  const limitMs = market.limitMs;
   const timeoutAmount = scenario.maxPrice + timeoutPenalty;
 
   const rows = participants.map((participant): Omit<RoundResultRow, 'rank'> => {

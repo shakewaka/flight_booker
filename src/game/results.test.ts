@@ -128,6 +128,23 @@ describe('computeRoundResults', () => {
     );
   });
 
+  it('早めに締め切られて予約できなかった人も、時間はもともとの制限時間で集計する', () => {
+    let market = createMarket(sampleRound, timer, { closeWhenPurchased: 1 });
+    market = buy(market, 'npc-1', 'site1', 'HND-TSA-0910', 80_000);
+    const rows = computeRoundResults({
+      participants: people,
+      market,
+      entries: [],
+      scenario: sampleRound,
+      timeoutPenalty: 0,
+      penaltySettings,
+    });
+    expect(market.timer.deadlineAt).toBe(START + 80_000);
+    expect(rows.find((r) => r.participant.id === 'npc-2')).toEqual(
+      expect.objectContaining({ status: 'timeout', amount: sampleRound.maxPrice, timeMs: 300_000 }),
+    );
+  });
+
   it('時間切れの集計金額には、追加ペナルティを足す', () => {
     const market = createMarket(sampleRound, timer);
     const rows = computeRoundResults({

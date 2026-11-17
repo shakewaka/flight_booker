@@ -9,6 +9,8 @@ type RoundResultsProps = {
   rows: RoundResultRow[];
   /** 時間切れの集計金額。 */
   timeoutAmount: number;
+  /** 早めに締め切ったときの人数。締切の時刻まで続いたなら null。 */
+  closedEarlyBy: number | null;
   playerId: string;
   roundNumber: number;
   roundCount: number;
@@ -57,6 +59,7 @@ function formatTime(ms: number): string {
 export function RoundResults({
   rows,
   timeoutAmount,
+  closedEarlyBy,
   playerId,
   roundNumber,
   roundCount,
@@ -71,6 +74,11 @@ export function RoundResults({
           ROUND {roundNumber} / {roundCount} 終了
         </p>
         <h2 id="results-title">今回のラウンド順位</h2>
+        {closedEarlyBy !== null && (
+          <p className="results__early">
+            {closedEarlyBy}人が予約したため、制限時間より早く締め切りました。
+          </p>
+        )}
       </header>
 
       <div className="results__table-wrap">
@@ -105,7 +113,7 @@ export function RoundResults({
                 <td className="results__num">{formatTime(row.timeMs)}</td>
                 <td>{row.site ? SITE_INFO[row.site].name : '—'}</td>
                 <td>
-                  <Outcome row={row} />
+                  <Outcome row={row} closedEarly={closedEarlyBy !== null} />
                 </td>
               </tr>
             ))}
@@ -160,9 +168,12 @@ export function RoundResults({
   );
 }
 
-function Outcome({ row }: { row: RoundResultRow }) {
-  if (row.status === 'timeout')
-    return <span className="results__tag results__tag--bad">時間切れ</span>;
+function Outcome({ row, closedEarly }: { row: RoundResultRow; closedEarly: boolean }) {
+  if (row.status === 'timeout') {
+    return (
+      <span className="results__tag results__tag--bad">{closedEarly ? '未予約' : '時間切れ'}</span>
+    );
+  }
   if (row.status === 'void')
     return <span className="results__tag results__tag--bad">旅行不成立</span>;
   const issues = [
