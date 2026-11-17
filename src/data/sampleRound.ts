@@ -47,6 +47,10 @@ export const sampleRound: RoundScenario = {
   airports: [
     { code: 'HNU', city: '羽之浦' },
     { code: 'HSO', city: '星汐' },
+    // 選択肢を増やすための空港。このラウンドの便はない。
+    { code: 'HBN', city: '雲雀野' },
+    { code: 'TKS', city: '月ヶ瀬' },
+    { code: 'ARM', city: '青嶺' },
   ],
   airlines: [
     { id: 'A', name: '航空会社A' },

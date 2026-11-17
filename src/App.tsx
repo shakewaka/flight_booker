@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { sampleRound } from './data/sampleRound';
-import { createRoundTimer, getRoundPhase } from './game/roundClock';
+import { createRoundTimer } from './game/roundClock';
 import { prototypeSettings } from './game/settings';
 import { useNow } from './ui/useNow';
 import { Workspace } from './ui/workspace/Workspace';
@@ -18,7 +18,6 @@ function newAttempt(id: number): Attempt {
 export default function App() {
   const [attempt, setAttempt] = useState(() => newAttempt(0));
   const now = useNow(100);
-  const phase = getRoundPhase(attempt.timer, now);
 
   return (
     <Workspace
@@ -26,8 +25,9 @@ export default function App() {
       scenario={sampleRound}
       roundNumber={1}
       roundCount={prototypeSettings.roundCount}
-      roundTimeLimitMs={prototypeSettings.roundTimeLimitMs}
-      phase={phase}
+      searchRange={prototypeSettings.searchDurationMs}
+      timer={attempt.timer}
+      now={now}
       onRestart={() => setAttempt((previous) => newAttempt(previous.id + 1))}
     />
   );

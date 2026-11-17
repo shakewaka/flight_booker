@@ -1,0 +1,306 @@
+.compare {
+  min-height: 100%;
+  padding-bottom: 32px;
+}
+
+.site-header__tagline {
+  margin-left: 14px;
+  color: #6b7686;
+  font-size: 13px;
+}
+
+/* ───────── 検索フォーム ───────── */
+
+.compare-form {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+  gap: 8px 14px;
+  align-items: end;
+  margin: 20px 28px 0;
+  padding: 18px 20px 14px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(20 40 80 / 10%);
+}
+
+.compare-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  color: #5a6576;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.compare-form__field select,
+.compare-form__field input {
+  height: 40px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid #c8d2df;
+  border-radius: 6px;
+  background: #fff;
+  color: #1f2a37;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.compare-form__field select:focus-visible,
+.compare-form__field input:focus-visible,
+.compare-form__submit:focus-visible,
+.flight-card__toggle:focus-visible {
+  outline: 3px solid #f5b400;
+  outline-offset: 1px;
+}
+
+.compare-form__submit {
+  height: 40px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 6px;
+  background: #2862bc;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.compare-form__submit:hover {
+  background: #1f4f9c;
+}
+
+.compare-form__fixed {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  color: #6b7686;
+  font-size: 12px;
+}
+
+.compare-form__error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #c0392b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ───────── 検索中と結果 ───────── */
+
+.compare-results {
+  margin: 22px 28px 0;
+}
+
+.compare-results__hint {
+  margin: 0;
+  padding: 18px 20px;
+  border: 1px dashed #b6c2d2;
+  border-radius: 10px;
+  color: #4b5666;
+  line-height: 1.8;
+}
+
+.compare-progress {
+  padding: 26px 24px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(20 40 80 / 10%);
+}
+
+.compare-progress__text {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.compare-progress__bar {
+  height: 8px;
+  margin-top: 14px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #e2e8f0;
+}
+
+.compare-progress__bar span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #3b82f6, #2862bc);
+  transition: width 0.1s linear;
+}
+
+.compare-progress__note {
+  margin: 12px 0 0;
+  color: #6b7686;
+  font-size: 13px;
+}
+
+.compare-results__head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.compare-results__head p {
+  margin: 6px 0 0;
+  color: #6b7686;
+  font-size: 12px;
+}
+
+.compare-results__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ───────── 候補の便 ───────── */
+
+.flight-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 24px;
+  padding: 16px 20px;
+  border: 1px solid #d5dde8;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.flight-card p {
+  margin: 0;
+}
+
+.flight-card__time {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.flight-card__summary {
+  margin-top: 6px !important;
+  color: #2f3a4a;
+  font-size: 14px;
+}
+
+.flight-card__details {
+  display: flex;
+  gap: 18px;
+  margin: 8px 0 0;
+  color: #5a6576;
+  font-size: 13px;
+}
+
+.flight-card__details div {
+  display: flex;
+  gap: 6px;
+}
+
+.flight-card__details dt::after {
+  content: '：';
+}
+
+.flight-card__details dd {
+  margin: 0;
+  color: #1f2a37;
+  font-weight: 700;
+}
+
+.flight-card__side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.flight-card__price {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.flight-card__price span {
+  margin-left: 2px;
+  color: #6b7686;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.flight-card__toggle {
+  padding: 8px 14px;
+  border: 1px solid #2862bc;
+  border-radius: 6px;
+  background: #fff;
+  color: #2862bc;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.flight-card__toggle[aria-expanded='true'] {
+  background: #eaf1fc;
+}
+
+.flight-card__prices {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin-top: 14px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.flight-card__prices tr {
+  border-top: 1px solid #e5eaf1;
+}
+
+.flight-card__prices th,
+.flight-card__prices td {
+  padding: 10px 8px;
+  text-align: left;
+}
+
+.flight-card__prices th {
+  width: 7em;
+  white-space: nowrap;
+}
+
+.flight-card__site-price {
+  width: 11em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.flight-card__site-feature {
+  color: #5a6576;
+  font-size: 13px;
+}
+
+.flight-card__prices td:last-child {
+  text-align: right;
+}
+
+.flight-card__prices button {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: #e2e8f0;
+  color: #7a8596;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.compare-results__count {
+  margin-left: 1em;
+}
+
+.flight-card__arrow {
+  margin: 0 0.9em;
+  color: #6b7686;
+}
+
+.compare-results__head p.compare-results__query {
+  color: #2f3a4a;
+  font-size: 13px;
+}

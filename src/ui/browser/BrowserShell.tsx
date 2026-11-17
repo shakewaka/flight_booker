@@ -1,27 +1,28 @@
+import type { ReactNode } from 'react';
+import { formatRemaining } from '../format';
 import './browser.css';
 
 /** 残り時間がこれ以下になったら、時計を赤くする。 */
 const WARNING_MS = 30_000;
 
-/** 残り時間を mm:ss にする。秒の端数は切り上げ、00:00 は締切の時点だけに出す。 */
-function formatRemaining(ms: number): string {
-  const totalSeconds = Math.ceil(Math.max(0, ms) / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
 type BrowserShellProps = {
   roundNumber: number;
   roundCount: number;
   remainingMs: number;
+  /** 開いているページの中身。 */
+  children: ReactNode;
 };
 
 /**
- * ゲーム内ブラウザの枠。タブの追加・切替と検索は、この後の作業で実装する。
- * 現時点の操作ボタンは見た目だけで、押せる部品としては公開しない。
+ * ゲーム内ブラウザの枠。タブの追加・切替は、この後の作業で実装する。
+ * 現時点のタブと操作ボタンは見た目だけで、押せる部品としては公開しない。
  */
-export function BrowserShell({ roundNumber, roundCount, remainingMs }: BrowserShellProps) {
+export function BrowserShell({
+  roundNumber,
+  roundCount,
+  remainingMs,
+  children,
+}: BrowserShellProps) {
   const timerClass =
     remainingMs <= WARNING_MS ? 'browser__timer browser__timer--warning' : 'browser__timer';
 
@@ -53,23 +54,7 @@ export function BrowserShell({ roundNumber, roundCount, remainingMs }: BrowserSh
         <span className={timerClass}>残り {formatRemaining(remainingMs)}</span>
       </div>
 
-      <div className="browser__page">
-        <header className="site-header">
-          <span className="site-header__logo" aria-hidden="true">
-            ✈
-          </span>
-          <span className="site-header__name">航空券比較サイト</span>
-        </header>
-        <div className="site-empty">
-          <h1>ここに比較サイトを表示します</h1>
-          <p>
-            検索フォームと複数タブは、この後の作業で追加します。右側の条件メモとパスポートを読みながら、この画面で予約を進めます。
-          </p>
-          <p className="site-empty__note">
-            登場する人物・航空会社・サイト・決済情報は、すべて架空です。
-          </p>
-        </div>
-      </div>
+      <div className="browser__page">{children}</div>
     </div>
   );
 }
