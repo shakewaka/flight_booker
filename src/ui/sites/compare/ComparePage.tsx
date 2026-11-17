@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   findQueryError,
   getSearchProgress,
@@ -16,11 +16,15 @@ import { createProgressCurve, progressAt, type ProgressCurve } from './progressC
 import './compare.css';
 
 type ComparePageProps = {
+  /** このページを開いているタブ。 */
+  tabId: string;
   scenario: RoundScenario;
   now: number;
   /** 締切の時刻。検索結果の取得時刻を、残り時間で表すのに使う。 */
   deadlineAt: number;
   searchRange: { min: number; max: number };
+  /** タブに出す題名と、検索中かどうかを知らせる。 */
+  onStatusChange: (tabId: string, title: string, busy: boolean) => void;
 };
 
 type RunningSearch = {
@@ -51,10 +55,28 @@ const EMPTY_QUERY: SearchQuery = {
 };
 
 /** 航空券比較サイト。条件を入れて検索し、候補と予約サイトごとの価格を見る。 */
-export function ComparePage({ scenario, now, deadlineAt, searchRange }: ComparePageProps) {
+export function ComparePage({
+  tabId,
+  scenario,
+  now,
+  deadlineAt,
+  searchRange,
+  onStatusChange,
+}: ComparePageProps) {
   const [draft, setDraft] = useState<SearchQuery>(EMPTY_QUERY);
   const [search, setSearch] = useState<RunningSearch | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // タブの題名は、検索した区間にする。検索中はタブのアイコンを回す。
+  const title = search
+    ? `比較｜${search.query.originCode} → ${search.query.destinationCode}`
+    : '航空券比較サイト';
+  const busy =
+    search !== null &&
+    getSearchProgress(search.startedAt, search.durationMs, now).kind === 'searching';
+  useEffect(() => {
+    onStatusChange(tabId, title, busy);
+  }, [onStatusChange, tabId, title, busy]);
 
   const update = (change: Partial<SearchQuery>) =>
     setDraft((previous) => ({ ...previous, ...change }));

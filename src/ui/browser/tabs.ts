@@ -1,0 +1,54 @@
+// ゲーム内ブラウザのタブの並び。画面の状態だけを扱い、在庫や予約の判定は持たない。
+// 企画書のとおり、タブの数に上限は置かない。
+
+/** タブで開くページの種類。予約サイトは、この後の作業で追加する。 */
+export type TabPage = 'compare';
+
+export type Tab = {
+  id: string;
+  page: TabPage;
+};
+
+export type TabsState = {
+  tabs: Tab[];
+  activeId: string;
+  /** 次に作るタブの番号。閉じたタブの番号は使い回さない。 */
+  nextNumber: number;
+};
+
+export type TabsAction =
+  | { type: 'open'; page: TabPage }
+  | { type: 'close'; id: string }
+  | { type: 'activate'; id: string };
+
+/** 最初は比較サイトを1タブだけ開いておく。 */
+export function createInitialTabs(): TabsState {
+  return { tabs: [{ id: 'tab-1', page: 'compare' }], activeId: 'tab-1', nextNumber: 2 };
+}
+
+export function tabsReducer(state: TabsState, action: TabsAction): TabsState {
+  switch (action.type) {
+    case 'open': {
+      // 新しいタブは右端に追加し、そのタブを表示する。
+      const tab: Tab = { id: `tab-${state.nextNumber}`, page: action.page };
+      return { tabs: [...state.tabs, tab], activeId: tab.id, nextNumber: state.nextNumber + 1 };
+    }
+
+    case 'close': {
+      const index = state.tabs.findIndex((tab) => tab.id === action.id);
+      // 最後の1タブは閉じない。何も開いていない画面を作らないため。
+      if (index === -1 || state.tabs.length === 1) return state;
+
+      const tabs = state.tabs.filter((tab) => tab.id !== action.id);
+      if (action.id !== state.activeId) return { ...state, tabs };
+      // 表示中のタブを閉じたら、右隣を表示する。右端だったら左隣を表示する。
+      const next = tabs[Math.min(index, tabs.length - 1)];
+      return { ...state, tabs, activeId: next.id };
+    }
+
+    case 'activate': {
+      if (!state.tabs.some((tab) => tab.id === action.id)) return state;
+      return { ...state, activeId: action.id };
+    }
+  }
+}

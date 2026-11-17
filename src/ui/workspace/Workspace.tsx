@@ -1,11 +1,10 @@
 import { describeRequirements } from '../../game/requirements';
 import { getRoundPhase, type RoundTimer } from '../../game/roundClock';
 import type { RoundScenario } from '../../game/types';
-import { BrowserShell } from '../browser/BrowserShell';
+import { GameBrowser } from '../browser/GameBrowser';
 import { TabletFrame } from '../browser/TabletFrame';
 import { IdentityStack } from '../documents/IdentityStack';
 import { MemoPad } from '../documents/MemoPad';
-import { ComparePage } from '../sites/compare/ComparePage';
 import { RoundOverlay } from './RoundOverlay';
 import './workspace.css';
 
@@ -45,14 +44,15 @@ export function Workspace({
     <main className="desk">
       <section className="desk__pc" aria-label="タブレット" inert={locked}>
         <TabletFrame>
-          <BrowserShell roundNumber={roundNumber} roundCount={roundCount} remainingMs={remainingMs}>
-            <ComparePage
-              scenario={scenario}
-              now={now}
-              deadlineAt={timer.deadlineAt}
-              searchRange={searchRange}
-            />
-          </BrowserShell>
+          <GameBrowser
+            scenario={scenario}
+            roundNumber={roundNumber}
+            roundCount={roundCount}
+            remainingMs={remainingMs}
+            now={now}
+            deadlineAt={timer.deadlineAt}
+            searchRange={searchRange}
+          />
         </TabletFrame>
       </section>
       <aside className="desk__papers" aria-label="手元の資料" inert={locked}>

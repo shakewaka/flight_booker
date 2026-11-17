@@ -1,0 +1,79 @@
+import { describe, expect, it } from 'vitest';
+import { createInitialTabs, tabsReducer, type TabsAction, type TabsState } from './tabs';
+
+const run = (actions: TabsAction[], start: TabsState = createInitialTabs()) =>
+  actions.reduce(tabsReducer, start);
+
+const ids = (state: TabsState) => state.tabs.map((tab) => tab.id);
+
+/** tab-1〜tab-4 の4タブを開き、tab-4 を表示している状態。 */
+const four = run([
+  { type: 'open', page: 'compare' },
+  { type: 'open', page: 'compare' },
+  { type: 'open', page: 'compare' },
+]);
+
+describe('tabsReducer', () => {
+  it('最初は比較サイトのタブが1つだけ開いている', () => {
+    const state = createInitialTabs();
+    expect(state.tabs).toEqual([{ id: 'tab-1', page: 'compare' }]);
+    expect(state.activeId).toBe('tab-1');
+  });
+
+  it('新しいタブは右端に追加され、そのタブが表示される', () => {
+    expect(ids(four)).toEqual(['tab-1', 'tab-2', 'tab-3', 'tab-4']);
+    expect(four.activeId).toBe('tab-4');
+  });
+
+  it('最後の1タブは閉じられない', () => {
+    const state = createInitialTabs();
+    expect(tabsReducer(state, { type: 'close', id: 'tab-1' })).toBe(state);
+  });
+
+  it('表示中のタブを閉じると、右隣のタブが表示される', () => {
+    const state = run(
+      [
+        { type: 'activate', id: 'tab-2' },
+        { type: 'close', id: 'tab-2' },
+      ],
+      four,
+    );
+    expect(ids(state)).toEqual(['tab-1', 'tab-3', 'tab-4']);
+    expect(state.activeId).toBe('tab-3');
+  });
+
+  it('右端の表示中のタブを閉じると、左隣のタブが表示される', () => {
+    const state = tabsReducer(four, { type: 'close', id: 'tab-4' });
+    expect(ids(state)).toEqual(['tab-1', 'tab-2', 'tab-3']);
+    expect(state.activeId).toBe('tab-3');
+  });
+
+  it('表示していないタブを閉じても、表示中のタブは変わらない', () => {
+    const state = tabsReducer(four, { type: 'close', id: 'tab-1' });
+    expect(ids(state)).toEqual(['tab-2', 'tab-3', 'tab-4']);
+    expect(state.activeId).toBe('tab-4');
+  });
+
+  it('閉じたタブの番号は使い回さない', () => {
+    const state = run(
+      [
+        { type: 'close', id: 'tab-4' },
+        { type: 'open', page: 'compare' },
+      ],
+      four,
+    );
+    expect(ids(state)).toEqual(['tab-1', 'tab-2', 'tab-3', 'tab-5']);
+  });
+
+  it('存在しないタブを閉じたり表示したりしても、何も変わらない', () => {
+    expect(tabsReducer(four, { type: 'close', id: 'tab-9' })).toBe(four);
+    expect(tabsReducer(four, { type: 'activate', id: 'tab-9' })).toBe(four);
+  });
+
+  it('タブの数に上限はない', () => {
+    const many = run(
+      Array.from({ length: 50 }, () => ({ type: 'open', page: 'compare' }) as const),
+    );
+    expect(many.tabs).toHaveLength(51);
+  });
+});
