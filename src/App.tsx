@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { createParticipants } from './data/participants';
-import { sampleRound } from './data/sampleRound';
+import { matchRounds } from './data/rounds';
 import { createMarket } from './game/market';
+import type { RoundResultRow } from './game/results';
 import { createRoundTimer, getRoundPhase, type RoundTimer } from './game/roundClock';
 import { prototypeSettings } from './game/settings';
 import type { Participant } from './game/types';
@@ -12,55 +13,78 @@ import { Workspace } from './ui/workspace/Workspace';
 /** 画面を操作する人間の参加者。NPCは別の番号を使う。 */
 const PLAYER_ID = 'player';
 
-type Attempt = {
-  /** やり直すたびに変わる番号。画面の部品を作り直し、前の状態を残さない。 */
-  id: number;
-  timer: RoundTimer;
-  /** このラウンドの市場。やり直すと、新しい市場に替わる。 */
-  store: MarketStore;
+/** 1試合の進行。参加者は試合を通して同じで、ラウンドごとに市場と時計を作り直す。 */
+type Match = {
+  /** ラウンドや試合が変わるたびに増える番号。画面の部品を作り直し、前の状態を残さない。 */
+  key: number;
   participants: Participant[];
+  /** 今のラウンド（0から数える）。 */
+  roundIndex: number;
+  /** 終了したラウンドの結果。 */
+  finished: RoundResultRow[][];
+  timer: RoundTimer;
+  /** このラウンドの市場。 */
+  store: MarketStore;
 };
 
-function newAttempt(id: number): Attempt {
+function startRound(
+  key: number,
+  participants: Participant[],
+  roundIndex: number,
+  finished: RoundResultRow[][],
+): Match {
+  const scenario = matchRounds[roundIndex];
   const timer = createRoundTimer(performance.now(), prototypeSettings);
-  const participants = createParticipants(prototypeSettings.npcCount);
-  const store = createMarketStore(createMarket(sampleRound, timer), {
-    scenario: sampleRound,
+  const store = createMarketStore(createMarket(scenario, timer), {
+    scenario,
     settings: prototypeSettings,
     participants,
   });
-  return { id, timer, store, participants };
+  return { key, participants, roundIndex, finished, timer, store };
+}
+
+function startMatch(key: number): Match {
+  return startRound(key, createParticipants(prototypeSettings.npcCount), 0, []);
 }
 
 export default function App() {
-  const [attempt, setAttempt] = useState(() => newAttempt(0));
+  const [match, setMatch] = useState(() => startMatch(0));
   const now = useNow(100);
-  const closed = getRoundPhase(attempt.timer, now).kind === 'closed';
+  const closed = getRoundPhase(match.timer, now).kind === 'closed';
 
   // 画面の時計が進むたびに、NPCを進めてサイト3の価格を更新する。
   useEffect(() => {
-    attempt.store.tick(now);
-  }, [now, attempt.store]);
+    match.store.tick(now);
+  }, [now, match.store]);
 
   // 締切になったら、残っている確保をすべて解放する。
   useEffect(() => {
-    if (closed) attempt.store.close();
-  }, [closed, attempt.store]);
+    if (closed) match.store.close();
+  }, [closed, match.store]);
 
   return (
     <Workspace
-      key={attempt.id}
-      scenario={sampleRound}
-      store={attempt.store}
+      key={match.key}
+      scenario={matchRounds[match.roundIndex]}
+      store={match.store}
       participantId={PLAYER_ID}
-      participants={attempt.participants}
+      participants={match.participants}
       timeoutPenalty={prototypeSettings.timeoutPenalty}
-      roundNumber={1}
-      roundCount={prototypeSettings.roundCount}
+      roundNumber={match.roundIndex + 1}
+      roundCount={matchRounds.length}
+      finishedRounds={match.finished}
       searchRange={prototypeSettings.searchDurationMs}
-      timer={attempt.timer}
+      timer={match.timer}
       now={now}
-      onRestart={() => setAttempt((previous) => newAttempt(previous.id + 1))}
+      onNextRound={(rows) =>
+        setMatch((previous) =>
+          startRound(previous.key + 1, previous.participants, previous.roundIndex + 1, [
+            ...previous.finished,
+            rows,
+          ]),
+        )
+      }
+      onRestartMatch={() => setMatch((previous) => startMatch(previous.key + 1))}
     />
   );
 }

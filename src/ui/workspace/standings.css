@@ -1,0 +1,139 @@
+.standings {
+  display: flex;
+  flex-direction: column;
+  width: min(980px, 76vw);
+  max-height: 92vh;
+  padding: 22px 28px 20px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1.2em 3em rgb(0 0 0 / 45%);
+  color: #1f2a37;
+  text-align: left;
+}
+
+.standings p,
+.standings h2 {
+  margin: 0;
+}
+
+.standings__round {
+  color: #6b7686;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.standings h2 {
+  margin-top: 2px;
+  font-size: 22px;
+}
+
+.standings__winner {
+  margin-top: 8px !important;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #fff3c4, #fffaf0);
+  color: #7a5a00;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.standings__table-wrap {
+  min-height: 0;
+  margin-top: 12px;
+  overflow: auto;
+}
+
+.standings__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.standings__table th,
+.standings__table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid #e5eaf1;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.standings__table thead th {
+  position: sticky;
+  top: 0;
+  background: #f4f6f9;
+  color: #5a6576;
+  font-size: 12px;
+}
+
+.standings__rank {
+  width: 3em;
+  font-size: 16px;
+  font-weight: 800;
+  text-align: center !important;
+}
+
+.standings__num {
+  font-variant-numeric: tabular-nums;
+  text-align: right !important;
+}
+
+.standings__round-amount {
+  color: #5a6576;
+  font-size: 13px;
+}
+
+.standings__me {
+  background: #fff6d6;
+}
+
+.standings__change {
+  color: #8a94a3;
+  font-weight: 700;
+}
+
+.standings__change--up {
+  color: #1e8449;
+}
+
+.standings__change--down {
+  color: #c0392b;
+}
+
+.standings__note {
+  margin-top: 12px !important;
+  color: #6b7686;
+  font-size: 12px;
+}
+
+.standings__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.standings__actions button {
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.standings__primary {
+  border: 0;
+  background: #2862bc;
+  color: #fff;
+}
+
+.standings__secondary {
+  border: 1px solid #c8d2df;
+  background: #fff;
+  color: #1f2a37;
+}
+
+.standings__actions button:focus-visible {
+  outline: 3px solid #ffd54a;
+  outline-offset: 3px;
+}

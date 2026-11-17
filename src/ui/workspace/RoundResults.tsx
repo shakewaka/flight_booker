@@ -10,7 +10,8 @@ type RoundResultsProps = {
   playerId: string;
   roundNumber: number;
   roundCount: number;
-  onRestart: () => void;
+  /** 総合順位へ進む。 */
+  onNext: () => void;
 };
 
 const FIELD_LABEL: Record<InputField, string> = {
@@ -53,7 +54,7 @@ export function RoundResults({
   playerId,
   roundNumber,
   roundCount,
-  onRestart,
+  onNext,
 }: RoundResultsProps) {
   const player = rows.find((row) => row.participant.id === playerId);
 
@@ -126,8 +127,8 @@ export function RoundResults({
         時間切れは、ラウンド最高値を購入した扱いで集計しています。入力ミスと条件違反の減点は未決定のため、順位は集計金額と予約タイムだけで並べています（仮）。
       </p>
       <div className="results__actions">
-        <button type="button" onClick={onRestart} autoFocus>
-          最初からやり直す
+        <button type="button" onClick={onNext} autoFocus>
+          総合順位へ
         </button>
       </div>
     </section>

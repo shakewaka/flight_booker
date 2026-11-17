@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { purchaseOf } from '../../game/market';
+import { computeStandings } from '../../game/match';
 import { describeRequirements } from '../../game/requirements';
-import { computeRoundResults } from '../../game/results';
+import { computeRoundResults, type RoundResultRow } from '../../game/results';
 import { getRoundPhase, type RoundTimer } from '../../game/roundClock';
 import type { Participant, RoundScenario } from '../../game/types';
 import { GameBrowser } from '../browser/GameBrowser';
@@ -11,6 +13,7 @@ import { useMarketSnapshot, type MarketStore } from '../marketStore';
 import { BookedOverlay } from './BookedOverlay';
 import { RoundOverlay } from './RoundOverlay';
 import { RoundResults } from './RoundResults';
+import { Standings } from './Standings';
 import './workspace.css';
 
 type WorkspaceProps = {
@@ -25,10 +28,14 @@ type WorkspaceProps = {
   timeoutPenalty: number;
   roundNumber: number;
   roundCount: number;
+  /** 終了したラウンドの結果。総合順位に使う。 */
+  finishedRounds: RoundResultRow[][];
   searchRange: { min: number; max: number };
   timer: RoundTimer;
   now: number;
-  onRestart: () => void;
+  /** このラウンドの結果を確定して、次のラウンドへ進む。 */
+  onNextRound: (rows: RoundResultRow[]) => void;
+  onRestartMatch: () => void;
 };
 
 /** 机の上。左80%にタブレット（企画書の「架空PC」）、右20%の上半分に条件メモ、下半分にパスポート・カードを置く。 */
@@ -40,11 +47,15 @@ export function Workspace({
   timeoutPenalty,
   roundNumber,
   roundCount,
+  finishedRounds,
   searchRange,
   timer,
   now,
-  onRestart,
+  onNextRound,
+  onRestartMatch,
 }: WorkspaceProps) {
+  // 締切後に、ラウンド結果と総合順位のどちらを見せているか。
+  const [showStandings, setShowStandings] = useState(false);
   const phase = getRoundPhase(timer, now);
   const memo = describeRequirements(scenario.requirements, scenario.airports, scenario.airlines);
   // カウント中は資料の中身を描画しない。締切後は操作だけを止め、資料は読めるままにする。
@@ -59,6 +70,32 @@ export function Workspace({
       : phase.kind === 'closed'
         ? 0
         : timer.deadlineAt - timer.startAt;
+
+  // 締切後の市場は変わらないので、毎回計算しても同じ結果になる。
+  function closedView() {
+    const rows = computeRoundResults({ participants, market, entries, scenario, timeoutPenalty });
+    if (!showStandings) {
+      return (
+        <RoundResults
+          rows={rows}
+          playerId={participantId}
+          roundNumber={roundNumber}
+          roundCount={roundCount}
+          onNext={() => setShowStandings(true)}
+        />
+      );
+    }
+    return (
+      <Standings
+        rows={computeStandings(participants, [...finishedRounds, rows])}
+        playerId={participantId}
+        finishedRounds={finishedRounds.length + 1}
+        roundCount={roundCount}
+        onNextRound={() => onNextRound(rows)}
+        onRestartMatch={onRestartMatch}
+      />
+    );
+  }
 
   return (
     <main className="desk">
@@ -94,24 +131,8 @@ export function Workspace({
       )}
       <RoundOverlay
         phase={phase}
-        onRestart={onRestart}
-        closedContent={
-          phase.kind === 'closed' ? (
-            <RoundResults
-              rows={computeRoundResults({
-                participants,
-                market,
-                entries,
-                scenario,
-                timeoutPenalty,
-              })}
-              playerId={participantId}
-              roundNumber={roundNumber}
-              roundCount={roundCount}
-              onRestart={onRestart}
-            />
-          ) : undefined
-        }
+        onRestart={onRestartMatch}
+        closedContent={phase.kind === 'closed' ? closedView() : undefined}
       />
     </main>
   );
