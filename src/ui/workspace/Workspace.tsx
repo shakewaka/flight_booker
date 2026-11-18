@@ -6,6 +6,7 @@ import { computeRoundResults, type RoundResultRow } from '../../game/results';
 import { getRoundPhase } from '../../game/roundClock';
 import type { PenaltySettings } from '../../game/settings';
 import type { Participant, RoundScenario } from '../../game/types';
+import { blockClipboard } from '../blockClipboard';
 import { GameBrowser } from '../browser/GameBrowser';
 import { TabletFrame } from '../browser/TabletFrame';
 import { IdentityStack, type ShownDocument } from '../documents/IdentityStack';
@@ -128,7 +129,7 @@ export function Workspace({
 
   return (
     <main className="desk" onKeyDownCapture={switchDocumentByTab}>
-      <section className="desk__pc" aria-label="タブレット" inert={locked}>
+      <section className="desk__pc" aria-label="タブレット" inert={locked} {...blockClipboard}>
         <TabletFrame>
           <GameBrowser
             scenario={scenario}
@@ -143,7 +144,7 @@ export function Workspace({
           />
         </TabletFrame>
       </section>
-      <aside className="desk__papers" aria-label="手元の資料" inert={locked}>
+      <aside className="desk__papers" aria-label="手元の資料" inert={locked} {...blockClipboard}>
         <MemoPad memo={memo} concealed={concealed} />
         <IdentityStack
           passport={scenario.passport}

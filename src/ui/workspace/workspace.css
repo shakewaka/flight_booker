@@ -53,4 +53,6 @@
   grid-template-rows: 50% 50%;
   min-width: 0;
   min-height: 0;
+  /* 資料の文字は選べないようにする（写して貼り付けられないように）。 */
+  user-select: none;
 }
