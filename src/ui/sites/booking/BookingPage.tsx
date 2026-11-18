@@ -8,13 +8,15 @@ import {
   type PaymentInput,
 } from '../../../game/booking';
 import { formatJapaneseDate } from '../../../game/dates';
-import type { MarketRefusal } from '../../../game/market';
+import { freeSeats, type MarketRefusal } from '../../../game/market';
+import { SEAT_POSITION_LABEL, seatPosition } from '../../../game/seatMap';
 import type { RoundScenario, SiteId } from '../../../game/types';
 import { formatYen } from '../../format';
 import { useMarketSnapshot, type MarketStore } from '../../marketStore';
 import { SITE_INFO } from '../siteInfo';
 import { enterToNext } from '../../enterToNext';
 import { formatInput, type InputFormat } from './inputFormat';
+import { SeatPicker } from './SeatPicker';
 import './booking.css';
 
 type BookingPageProps = {
@@ -29,7 +31,17 @@ type BookingPageProps = {
   onBackToCompare: () => void;
 };
 
-type Step = 'review' | 'passenger' | 'payment';
+type Step = 'review' | 'seat' | 'passenger' | 'payment';
+
+const STEP_LABEL: Record<Step, string> = {
+  review: '便の確認',
+  seat: '座席',
+  passenger: '搭乗者情報',
+  payment: '決済',
+};
+
+/** 席を指定しないとき（おまかせ）の値。 */
+const AUTO_SEAT = 'auto';
 
 type FieldDefinition<K extends string> = {
   key: K;
@@ -65,12 +77,17 @@ const REFUSAL_TEXT: Record<MarketRefusal, string> = {
   'already-purchased': 'このラウンドの予約は、すでに完了しています。',
   'unknown-flight': 'この便は見つかりませんでした。',
   'sold-out': 'この便は満席になりました。別の便を探してください。',
+  // 席だけが埋まったときは、座席の画面へ戻すので、この文は通常は表示しない。
+  'seat-taken': '選んだ席は、ほかの人が先に予約しました。',
+  'unknown-seat': 'この席は選べません。座席を選び直してください。',
   'fare-sold-out': 'このチケットは売り切れました。この料金での販売は終了しています。',
   'no-hold': '席の確保が見つかりません。搭乗者情報の画面から手続きをやり直してください。',
 };
 
 /**
- * 予約サイトの手続き。便の確認 → 搭乗者情報 → 決済情報 → 確定 の順に進む。
+ * 予約サイトの手続き。便の確認 → 座席 → 搭乗者情報 → 決済情報 → 確定 の順に進む。
+ * 席は指定しなくてもよい（おまかせ：市場が空いている席を割り当てる）。
+ * 選んだ席だけが先に埋まり、他に空席があるときは、入力を残したまま座席の画面へ戻す（企画書の基本仕様）。
  * - サイト1：確定するまで席を確保しない。確定の時点で売り切れなら買えない。
  * - サイト2：搭乗者情報の画面で「決済へ進む」を押した時点で、席と価格を確保する（企画書の仮案）。
  * - サイト3：確定ボタンを押した瞬間の価格で買う。
@@ -91,6 +108,10 @@ export function BookingPage({
   const [payment, setPayment] = useState<PaymentInput>(EMPTY_PAYMENT);
   const [message, setMessage] = useState<string | null>(null);
   const [refusal, setRefusal] = useState<MarketRefusal | null>(null);
+  /** 選んだ席。おまかせなら AUTO_SEAT、まだ選んでいなければ null。 */
+  const [seat, setSeat] = useState<string | null>(null);
+  /** 席が埋まって座席の画面へ戻ったとき、席を選び直したら戻る手順。 */
+  const [resumeStep, setResumeStep] = useState<Step | null>(null);
 
   const info = SITE_INFO[site];
   const flight = scenario.flights.find((candidate) => candidate.id === flightId);
@@ -111,6 +132,30 @@ export function BookingPage({
   const cityOf = (code: string) => airportName(scenario.airports, code);
   const airlineOf = (id: string) => scenario.airlines.find((a) => a.id === id)?.name ?? id;
   const duration = flightDurationMinutes(scenario.airports, flight);
+  // 確保していれば、確保した席。そうでなければ、選んだ席（おまかせなら指定しない）。
+  const shownSeat = hold?.seatId ?? (seat === AUTO_SEAT ? null : seat);
+  const requestedSeat = seat === AUTO_SEAT || seat === null ? undefined : seat;
+
+  /** 市場に断られたとき。席だけが埋まったなら、入力を残したまま座席の画面へ戻す。 */
+  const handleRefusal = (reason: MarketRefusal, from: Step) => {
+    if (reason === 'seat-taken' || reason === 'unknown-seat') {
+      setMessage(
+        `選んだ席（${seat}）は、ほかの人が先に予約しました。別の席を選んでください。入力した内容は残っています。`,
+      );
+      setSeat(null);
+      setResumeStep(from);
+      setStep('seat');
+      return;
+    }
+    setRefusal(reason);
+  };
+
+  const chooseSeat = (next: string) => {
+    setSeat(next);
+    setMessage(null);
+    setStep(resumeStep ?? 'passenger');
+    setResumeStep(null);
+  };
 
   const goToPayment = (event: FormEvent) => {
     event.preventDefault();
@@ -123,11 +168,12 @@ export function BookingPage({
       const result = store.placeHold({
         participantId,
         flightId,
+        seatId: requestedSeat,
         procedureId: tabId,
         now: performance.now(),
       });
       if (!result.ok) {
-        setRefusal(result.reason);
+        handleRefusal(result.reason, 'passenger');
         return;
       }
     }
@@ -142,11 +188,18 @@ export function BookingPage({
     }
     setMessage(null);
     const result = store.purchase(
-      { participantId, site, flightId, procedureId: tabId, now: performance.now() },
+      {
+        participantId,
+        site,
+        flightId,
+        seatId: requestedSeat,
+        procedureId: tabId,
+        now: performance.now(),
+      },
       { participantId, procedureId: tabId, site, flightId, passenger, payment },
     );
     // 成功すると、画面全体に予約完了の表示が重なる。
-    if (!result.ok) setRefusal(result.reason);
+    if (!result.ok) handleRefusal(result.reason, 'payment');
   };
 
   const releaseOwnHold = () => {
@@ -165,10 +218,9 @@ export function BookingPage({
       </header>
 
       <ol className="booking__steps" aria-label="予約の手順">
-        {(['review', 'passenger', 'payment'] as const).map((key, index) => (
+        {(['review', 'seat', 'passenger', 'payment'] as const).map((key, index) => (
           <li key={key} aria-current={step === key ? 'step' : undefined}>
-            {index + 1}.{' '}
-            {key === 'review' ? '便の確認' : key === 'passenger' ? '搭乗者情報' : '決済'}
+            {index + 1}. {STEP_LABEL[key]}
           </li>
         ))}
       </ol>
@@ -190,6 +242,14 @@ export function BookingPage({
             {Math.floor(duration / 60)}時間{duration % 60}分 ／ 到着ターミナル
             {flight.arrivalTerminal} ／ 受託手荷物{flight.checkedBaggageKg}kg込み
           </p>
+          {(seat !== null || hold) && (
+            <p className="booking__meta">
+              座席：
+              {shownSeat
+                ? `${shownSeat}（${SEAT_POSITION_LABEL[seatPosition(shownSeat)]}）`
+                : 'おまかせ（予約の確定時に割り当て）'}
+            </p>
+          )}
         </div>
         <p className="booking__price">
           {formatYen(price)}
@@ -205,7 +265,10 @@ export function BookingPage({
 
       {hold && (
         <div className="booking__hold" role="status">
-          <span>席を確保しています。この手続きでは {formatYen(hold.price)} で予約できます。</span>
+          <span>
+            席（{hold.seatId}）を確保しています。この手続きでは {formatYen(hold.price)}{' '}
+            で予約できます。
+          </span>
           <button type="button" onClick={releaseOwnHold}>
             確保を解除する
           </button>
@@ -242,8 +305,43 @@ export function BookingPage({
             {site === 'site3' && '確定ボタンを押した瞬間の価格で予約が確定します。'}
           </p>
           <div className="booking__actions">
-            <button type="button" className="booking__primary" onClick={() => setStep('passenger')}>
+            <button type="button" className="booking__primary" onClick={() => setStep('seat')}>
               予約手続きへ進む
+            </button>
+          </div>
+        </div>
+      ) : step === 'seat' ? (
+        <div className="booking__panel">
+          <h2>座席</h2>
+          <p className="booking__hint">
+            空いている席を選んでください。席を選んでも、
+            {site === 'site2' ? '「決済へ進む」を押すまで' : '予約が確定するまで'}
+            確保はされません。指定しない場合は、確定時に空いている席を割り当てます。
+          </p>
+          {message && (
+            <p className="booking__message" role="alert">
+              {message}
+            </p>
+          )}
+          <SeatPicker
+            openSeats={market.seats[flightId] ?? []}
+            freeSeats={freeSeats(market, flightId)}
+            selected={seat}
+            onSelect={chooseSeat}
+          />
+          <div className="booking__actions">
+            <button
+              type="button"
+              onClick={() => {
+                setMessage(null);
+                setResumeStep(null);
+                setStep('review');
+              }}
+            >
+              戻る
+            </button>
+            <button type="button" onClick={() => chooseSeat(AUTO_SEAT)}>
+              座席を指定しない（おまかせ）
             </button>
           </div>
         </div>
@@ -260,9 +358,18 @@ export function BookingPage({
             </p>
           )}
           <div className="booking__actions">
-            <button type="button" onClick={() => setStep('review')}>
-              戻る
-            </button>
+            {/* 確保した後は席を変えられない。変えるときは、確保を解除する。 */}
+            {!hold && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMessage(null);
+                  setStep('seat');
+                }}
+              >
+                座席を選び直す
+              </button>
+            )}
             <button type="submit" className="booking__primary">
               決済へ進む
             </button>

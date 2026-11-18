@@ -5,6 +5,7 @@ import {
   closedEarly,
   closeMarket,
   createMarket,
+  freeSeats,
   placeHold,
   purchase,
   purchaseOf,
@@ -15,6 +16,7 @@ import {
   type MarketState,
 } from './market';
 import { createRoundTimer } from './roundClock';
+import { cabinSeats } from './seatMap';
 import type { RoundScenario, SiteId } from './types';
 
 // カウント10秒、制限時間300秒。基準の時刻を0とする。
@@ -85,6 +87,148 @@ describe('共通の座席', () => {
     const result = buy(market, 'B', 'site1');
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('sold-out');
+  });
+});
+
+describe('座席の指定', () => {
+  const seatsOf = (market: MarketState) => market.seats.F;
+
+  it('指定した席を買うと、その席が購入済みになり、他の人は同じ席を買えない', () => {
+    let market = smallMarket(3, 3);
+    const [first] = seatsOf(market);
+    const bought = purchase(market, {
+      participantId: 'A',
+      site: 'site1',
+      flightId: 'F',
+      seatId: first,
+      procedureId: 'a',
+      now: OPEN,
+    });
+    expect(bought.ok && bought.value.seatId).toBe(first);
+    market = ok(bought);
+    expect(freeSeats(market, 'F')).not.toContain(first);
+
+    const again = purchase(market, {
+      participantId: 'B',
+      site: 'site3',
+      flightId: 'F',
+      seatId: first,
+      procedureId: 'b',
+      now: OPEN,
+    });
+    expect(!again.ok && again.reason).toBe('seat-taken');
+  });
+
+  it('指定した席が埋まっていても、空席がなければ「満席」を返す', () => {
+    let market = smallMarket(1, 1);
+    const [only] = seatsOf(market);
+    market = ok(buy(market, 'A', 'site1'));
+    const result = purchase(market, {
+      participantId: 'B',
+      site: 'site3',
+      flightId: 'F',
+      seatId: only,
+      procedureId: 'b',
+      now: OPEN,
+    });
+    expect(!result.ok && result.reason).toBe('sold-out');
+  });
+
+  it('他人が確保している席は、指定しても買えない。おまかせなら別の空席を割り当てる', () => {
+    let market = smallMarket(2, 2);
+    const [first, second] = seatsOf(market);
+    market = ok(
+      placeHold(market, {
+        participantId: 'A',
+        flightId: 'F',
+        seatId: first,
+        procedureId: 'a-1',
+        now: OPEN,
+      }),
+    );
+    const pinned = purchase(market, {
+      participantId: 'B',
+      site: 'site1',
+      flightId: 'F',
+      seatId: first,
+      procedureId: 'b',
+      now: OPEN,
+    });
+    expect(!pinned.ok && pinned.reason).toBe('seat-taken');
+    const auto = buy(market, 'B', 'site1');
+    expect(auto.ok && auto.value.seatId).toBe(second);
+  });
+
+  it('サイト2では、確保した席をそのまま買う', () => {
+    let market = smallMarket(3, 3);
+    const seat = seatsOf(market)[2];
+    market = ok(
+      placeHold(market, {
+        participantId: 'A',
+        flightId: 'F',
+        seatId: seat,
+        procedureId: 'a-1',
+        now: OPEN,
+      }),
+    );
+    const bought = buy(market, 'A', 'site2', 'a-1');
+    expect(bought.ok && bought.value.seatId).toBe(seat);
+  });
+
+  it('購入すると、本人が確保していた他の席は空席に戻る', () => {
+    let market = smallMarket(3, 3);
+    const [first, second] = seatsOf(market);
+    market = ok(
+      placeHold(market, {
+        participantId: 'A',
+        flightId: 'F',
+        seatId: first,
+        procedureId: 'a-1',
+        now: OPEN,
+      }),
+    );
+    market = ok(
+      placeHold(market, {
+        participantId: 'A',
+        flightId: 'F',
+        seatId: second,
+        procedureId: 'a-2',
+        now: OPEN,
+      }),
+    );
+    market = ok(buy(market, 'A', 'site2', 'a-2'));
+    expect(freeSeats(market, 'F')).toContain(first);
+    expect(freeSeats(market, 'F')).not.toContain(second);
+  });
+
+  it('料金の枠が尽きていれば、席が埋まっていても「料金の売り切れ」を先に知らせる', () => {
+    let market = smallMarket(3, 1);
+    const [first] = seatsOf(market);
+    market = ok(buy(market, 'A', 'site1'));
+    const result = purchase(market, {
+      participantId: 'B',
+      site: 'site1',
+      flightId: 'F',
+      seatId: first,
+      procedureId: 'b',
+      now: OPEN,
+    });
+    expect(!result.ok && result.reason).toBe('fare-sold-out');
+  });
+
+  it('一般の乗客が予約済みの席や、座席表にない席は指定できない', () => {
+    const market = smallMarket(2, 2);
+    const occupied = cabinSeats().find((seat) => !seatsOf(market).includes(seat));
+    for (const seatId of [occupied, '99Z']) {
+      const result = placeHold(market, {
+        participantId: 'A',
+        flightId: 'F',
+        seatId,
+        procedureId: 'a-1',
+        now: OPEN,
+      });
+      expect(!result.ok && result.reason).toBe('unknown-seat');
+    }
   });
 });
 

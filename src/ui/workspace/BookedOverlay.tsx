@@ -2,6 +2,7 @@ import { airportName } from '../../game/airports';
 import type { BookingEntry } from '../../game/booking';
 import { formatJapaneseDate } from '../../game/dates';
 import type { Purchase } from '../../game/market';
+import { SEAT_POSITION_LABEL, seatPosition } from '../../game/seatMap';
 import type { RoundScenario } from '../../game/types';
 import { formatRemaining, formatYen } from '../format';
 import { SITE_INFO } from '../sites/siteInfo';
@@ -78,6 +79,12 @@ export function BookedOverlay({
           <div>
             <dt>搭乗日</dt>
             <dd>{flight ? formatJapaneseDate(flight.departureDate) : '—'}</dd>
+          </div>
+          <div>
+            <dt>座席</dt>
+            <dd>
+              {purchase.seatId}（{SEAT_POSITION_LABEL[seatPosition(purchase.seatId)]}）
+            </dd>
           </div>
           <div>
             <dt>予約タイム</dt>

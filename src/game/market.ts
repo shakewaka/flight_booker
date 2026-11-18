@@ -1,11 +1,14 @@
 import { bookingTimeMs, isBookingOpen, type RoundTimer } from './roundClock';
+import { openSeatsOf } from './seatMap';
 import type { RoundScenario, SiteId, Yen } from './types';
 
 // 1ラウンドの市場。全予約サイト・全参加者（人間とNPC）が、この処理だけを通して席を確保・購入する。
 // 画面やタブごとに在庫を持たない。状態は書き換えず、操作のたびに新しい状態を返す。
 //
 // 守る仕様（企画書「7 予約サイトの3種類」「8 複数タブと予約の制約」）
-// - 物理的な座席は、全サイトで共有する。
+// - 物理的な座席は、全サイトで共有する。席は座席番号で1席ずつ扱う（src/game/seatMap.ts）。
+// - 席を指定しなければ（おまかせ）、空いている席を決まった順に割り当てる。
+// - 指定した席だけが埋まっていて他に空席があれば 'seat-taken'、空席がなければ 'sold-out' を返す。
 // - サイト1の最安料金で売れる数（販売枠）は、座席数とは別に数える。
 // - 確保（サイト2）は、参加者・手続き・価格にひも付く。他サイトの購入には流用しない。
 // - 1人が何枠でも確保できる。同じ手続きの確保をくり返しても、別の確保として数えない。
@@ -17,6 +20,8 @@ export type Hold = {
   id: string;
   participantId: string;
   flightId: string;
+  /** 確保した席の座席番号。 */
+  seatId: string;
   /** 確保を行った予約手続き。タブなど、画面側で1回の手続きごとに決める。 */
   procedureId: string;
   /** 確保した時点の総額。確保後に値上げしない。 */
@@ -26,6 +31,8 @@ export type Hold = {
 export type Purchase = {
   participantId: string;
   flightId: string;
+  /** 購入した席の座席番号。 */
+  seatId: string;
   site: SiteId;
   procedureId: string;
   price: Yen;
@@ -40,8 +47,8 @@ export type MarketState = {
   limitMs: number;
   /** この人数が購入した時点で締め切る。締め切らないなら null。 */
   closeWhenPurchased: number | null;
-  /** 便ごとの物理的な座席数。 */
-  seats: Record<string, number>;
+  /** 便ごとの、参加者が買える席の座席番号。並びは、おまかせで割り当てる順。 */
+  seats: Record<string, string[]>;
   /** 便ごとの、サイト1の最安料金で売れる上限数。 */
   site1Quota: Record<string, number>;
   site1Price: Record<string, Yen>;
@@ -64,6 +71,10 @@ export type MarketRefusal =
   | 'unknown-flight'
   /** 空いている座席がない（他人の確保や購入で埋まっている）。 */
   | 'sold-out'
+  /** 指定した席は埋まっているが、他に空席がある。席を選び直せば買える。 */
+  | 'seat-taken'
+  /** 座席表にない席、または一般の乗客が予約済みの席を指定した。 */
+  | 'unknown-seat'
   /** 座席はあるが、サイト1の最安料金の販売枠が尽きた。 */
   | 'fare-sold-out'
   /** サイト2で、この手続きの確保がない。 */
@@ -86,7 +97,7 @@ export function createMarket(
     timer,
     limitMs: timer.deadlineAt - timer.startAt,
     closeWhenPurchased: options.closeWhenPurchased ?? null,
-    seats: Object.fromEntries(scenario.flights.map((flight) => [flight.id, flight.seats])),
+    seats: Object.fromEntries(scenario.flights.map((flight) => [flight.id, openSeatsOf(flight)])),
     site1Quota: byFlight((offer) => offer.site1.fareQuota),
     site1Price: byFlight((offer) => offer.site1.price),
     site2Price: byFlight((offer) => offer.site2.price),
@@ -98,11 +109,37 @@ export function createMarket(
   };
 }
 
+/** 誰も確保・購入していない席の座席番号。並びは、おまかせで割り当てる順。 */
+export function freeSeats(market: MarketState, flightId: string): string[] {
+  const taken = new Set(
+    [...market.holds, ...market.purchases]
+      .filter((item) => item.flightId === flightId)
+      .map((item) => item.seatId),
+  );
+  return (market.seats[flightId] ?? []).filter((seat) => !taken.has(seat));
+}
+
 /** 誰も確保・購入していない座席の数。 */
 export function availableSeats(market: MarketState, flightId: string): number {
-  const held = market.holds.filter((hold) => hold.flightId === flightId).length;
-  const sold = market.purchases.filter((purchase) => purchase.flightId === flightId).length;
-  return (market.seats[flightId] ?? 0) - held - sold;
+  return freeSeats(market, flightId).length;
+}
+
+/**
+ * 使う席を決める。指定がなければ（おまかせ）、空いている最初の席。
+ * 決められなければ、その理由を返す。
+ */
+function chooseSeat(
+  market: MarketState,
+  flightId: string,
+  seatId: string | undefined,
+): { seatId: string } | { refusal: MarketRefusal } {
+  const free = freeSeats(market, flightId);
+  if (seatId !== undefined && !market.seats[flightId].includes(seatId)) {
+    return { refusal: 'unknown-seat' };
+  }
+  if (free.length === 0) return { refusal: 'sold-out' };
+  if (seatId === undefined) return { seatId: free[0] };
+  return free.includes(seatId) ? { seatId } : { refusal: 'seat-taken' };
 }
 
 /** サイト1の最安料金で、あと何枚売れるか。座席が空いているかは別に調べる。 */
@@ -135,12 +172,20 @@ function checkCommon(
 }
 
 /**
- * サイト2の確保。空いている座席1つと、その時点のサイト2の価格を、この手続きのために押さえる。
+ * サイト2の確保。指定した席（指定がなければ空いている席）と、その時点のサイト2の価格を、
+ * この手続きのために押さえる。
  * 同じ参加者が同じ手続きで確保し直した場合は、新しい確保を作らず、前の確保を返す。
  */
 export function placeHold(
   market: MarketState,
-  request: { participantId: string; flightId: string; procedureId: string; now: number },
+  request: {
+    participantId: string;
+    flightId: string;
+    /** 指定する席。省略すると、おまかせ。 */
+    seatId?: string;
+    procedureId: string;
+    now: number;
+  },
 ): MarketResult<Hold> {
   const { participantId, flightId, procedureId, now } = request;
   const refusal = checkCommon(market, participantId, flightId, now);
@@ -151,12 +196,14 @@ export function placeHold(
   );
   if (existing) return { ok: true, state: market, value: existing };
 
-  if (availableSeats(market, flightId) < 1) return refuse(market, 'sold-out');
+  const seat = chooseSeat(market, flightId, request.seatId);
+  if ('refusal' in seat) return refuse(market, seat.refusal);
 
   const hold: Hold = {
     id: `hold-${market.nextHoldNumber}`,
     participantId,
     flightId,
+    seatId: seat.seatId,
     procedureId,
     price: market.site2Price[flightId],
   };
@@ -184,6 +231,7 @@ export function releaseHold(
  * - サイト1：空席と最安料金の販売枠の両方が残っていれば、その価格で買える。
  * - サイト2：この手続きで確保した席を、確保した価格で買う。
  * - サイト3：空席があれば、確定した瞬間のサイト3の価格で買える。
+ * サイト1・3は、指定した席（指定がなければ空いている席）をこの時点で確かめる。
  * 成功すると、本人の他の確保をすべて解放する。
  */
 export function purchase(
@@ -192,6 +240,8 @@ export function purchase(
     participantId: string;
     site: SiteId;
     flightId: string;
+    /** 指定する席。省略すると、おまかせ。サイト2では使わず、確保した席を買う。 */
+    seatId?: string;
     procedureId: string;
     now: number;
   },
@@ -201,6 +251,7 @@ export function purchase(
   if (refusal) return refuse(market, refusal);
 
   let price: Yen;
+  let seatId: string;
   let holds = market.holds;
 
   if (site === 'site2') {
@@ -212,19 +263,25 @@ export function purchase(
     );
     if (!hold) return refuse(market, 'no-hold');
     price = hold.price;
+    seatId = hold.seatId;
     // 確保していた席が、そのまま購入済みの席になる。
     holds = holds.filter((candidate) => candidate !== hold);
   } else {
     if (availableSeats(market, flightId) < 1) return refuse(market, 'sold-out');
+    // 料金の枠が尽きていれば、席を選び直しても買えないので、先に知らせる。
     if (site === 'site1' && site1FareRemaining(market, flightId) < 1) {
       return refuse(market, 'fare-sold-out');
     }
+    const seat = chooseSeat(market, flightId, request.seatId);
+    if ('refusal' in seat) return refuse(market, seat.refusal);
+    seatId = seat.seatId;
     price = site === 'site1' ? market.site1Price[flightId] : market.site3Price[flightId];
   }
 
   const bought: Purchase = {
     participantId,
     flightId,
+    seatId,
     site,
     procedureId,
     price,

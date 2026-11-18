@@ -1,0 +1,99 @@
+.seat-picker {
+  --seat-size: 30px;
+
+  margin-top: 14px;
+}
+
+.seat-picker__cabin {
+  display: inline-grid;
+  gap: 5px;
+  align-items: center;
+  padding: 14px 18px;
+  border: 1px solid #dde2ea;
+  border-radius: 40px 12px 12px 40px;
+  background: #fafbfc;
+  justify-items: center;
+}
+
+.seat-picker__nose,
+.seat-picker__row-number,
+.seat-picker__letter {
+  color: #6b7686;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.seat-picker__nose {
+  padding-right: 6px;
+}
+
+.seat-picker__aisle {
+  grid-column: 1 / -1;
+  width: 100%;
+  border-top: 1px dashed #c8d2df;
+  border-bottom: 1px dashed #c8d2df;
+  color: #9aa4b2;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  letter-spacing: 1em;
+}
+
+.booking .seat-picker__seat {
+  display: inline-block;
+  width: var(--seat-size);
+  height: var(--seat-size);
+  padding: 0;
+  border: 2px solid #9fb3cc;
+  border-radius: 6px 6px 4px 4px;
+  background: #fff;
+  vertical-align: middle;
+}
+
+.booking .seat-picker__seat--free:hover {
+  border-color: var(--site-color);
+  background: var(--site-soft);
+}
+
+.booking .seat-picker__seat--occupied,
+.booking .seat-picker__seat--taken {
+  border-color: #d5dae1;
+  background:
+    linear-gradient(45deg, transparent 45%, #c3cad4 45% 55%, transparent 55%),
+    linear-gradient(-45deg, transparent 45%, #c3cad4 45% 55%, transparent 55%), #eceff3;
+  cursor: not-allowed;
+}
+
+.booking .seat-picker__seat--selected {
+  border-color: var(--site-color);
+  background: var(--site-color);
+  box-shadow: 0 0 0 3px var(--site-soft);
+}
+
+.seat-picker__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  align-items: center;
+  margin: 10px 0 0;
+  padding: 0;
+  color: #4b5666;
+  font-size: 12px;
+  list-style: none;
+}
+
+.seat-picker__legend li {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.seat-picker__legend .seat-picker__seat {
+  --seat-size: 16px;
+}
+
+.seat-picker__choice {
+  margin-top: 12px !important;
+  font-size: 15px;
+  font-weight: 700;
+}

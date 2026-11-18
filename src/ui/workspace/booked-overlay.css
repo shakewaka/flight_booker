@@ -90,7 +90,7 @@
 
 .ticket__details {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
   gap: 12px;
   margin: 0;
   padding: 14px 26px 18px;

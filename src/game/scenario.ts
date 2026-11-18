@@ -1,5 +1,6 @@
 import { flightDurationMinutes } from './airports';
 import { findTripViolations } from './requirements';
+import { cabinSeats } from './seatMap';
 import type { RoundScenario } from './types';
 
 /**
@@ -27,6 +28,11 @@ export function findScenarioProblems(scenario: RoundScenario, participantCount: 
     }
     if (flight.seats < 1) {
       problems.push(`便 ${flight.id}：座席がない`);
+    }
+    if (flight.seats > cabinSeats().length) {
+      problems.push(
+        `便 ${flight.id}：座席数が座席表の席の数（${cabinSeats().length}席）を超えている`,
+      );
     }
   }
 
