@@ -4,7 +4,7 @@ import { matchRounds } from '../data/rounds';
 import { createMarket } from './market';
 import { computeStandings } from './match';
 import { advanceNpcs, createNpc } from './npc';
-import { findTripViolations } from './requirements';
+import { findBookingViolations } from './requirements';
 import { createRoundTimer } from './roundClock';
 import type { RoundResultRow } from './results';
 import { findScenarioProblems } from './scenario';
@@ -29,6 +29,7 @@ function round(values: Record<string, [number, number]>): RoundResultRow[] {
     timeMs: values[participant.id][1],
     site: 'site1',
     flightId: 'F',
+    seatId: '21A',
     inputMistakes: [],
     tripViolations: [],
     rank: 0,
@@ -141,7 +142,10 @@ describe('4ラウンドでのNPC', () => {
       for (const bought of market.purchases) {
         const flight = scenario.flights.find((f) => f.id === bought.flightId);
         const npc = npcs.find((candidate) => candidate.id === bought.participantId);
-        const violations = flight ? findTripViolations(flight, scenario.requirements) : ['?'];
+        // 席の条件も含めて、見落とした条件以外は満たしている。
+        const violations = flight
+          ? findBookingViolations(flight, bought.seatId, scenario.requirements)
+          : ['?'];
         expect(violations.every((v) => v === npc?.overlooked)).toBe(true);
       }
       for (const offer of scenario.offers) {

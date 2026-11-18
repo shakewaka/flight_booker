@@ -13,7 +13,14 @@ import {
 import { judgeBooking } from './judge';
 import { findTripViolations } from './requirements';
 import { createRoundTimer } from './roundClock';
+import { seatPosition } from './seatMap';
 import { prototypeSettings as settings } from './settings';
+
+/** 成功した結果の状態を取り出す。失敗していたらテストを止める。 */
+function ok(result: ReturnType<typeof purchase>): MarketState {
+  if (!result.ok) throw new Error(`失敗した：${result.reason}`);
+  return result.state;
+}
 
 const timer = createRoundTimer(0, settings);
 const START = timer.startAt;
@@ -217,6 +224,84 @@ describe('NPC9人での1ラウンド', () => {
 
   it('サイトの好みが分かれ、1つのサイトに全員が集まらない', () => {
     expect(new Set(market.purchases.map((p) => p.site)).size).toBeGreaterThan(1);
+  });
+});
+
+describe('NPCの席選び', () => {
+  // サンプルのラウンドに「座席は窓側」の条件を足したもの。
+  const windowRound = {
+    ...sampleRound,
+    requirements: { ...sampleRound.requirements, seatPositions: ['window' as const] },
+  };
+  const windowCtx = (now: number) => ({ scenario: windowRound, settings, now });
+  const rusher = (market: MarketState): NpcState => ({
+    ...createNpc('npc-seat', 0, market, windowRound, settings),
+    overlooked: null,
+  });
+  /** NPCを進め、最初の手続きを始めた時点の状態を返す。 */
+  const untilProcedure = (npc: NpcState, market: MarketState) => {
+    let now = 0;
+    while (npc.phase === 'searching') {
+      ({ npc, market } = stepNpc(npc, market, windowCtx(now)));
+      now += TICK;
+    }
+    return { npc, market, now };
+  };
+  const finish = (npc: NpcState, market: MarketState, from: number) => {
+    for (let now = from; now <= DEADLINE; now += TICK) {
+      ({ npc, market } = stepNpc(npc, market, windowCtx(now)));
+    }
+    return { npc, market };
+  };
+
+  it('席の条件があれば、条件に合う席を選んで買う', () => {
+    const market = createMarket(windowRound, timer);
+    const started = untilProcedure(rusher(market), market);
+    expect(seatPosition(started.npc.target?.seatId ?? '')).toBe('window');
+    const { market: after } = finish(started.npc, started.market, started.now);
+    expect(seatPosition(after.purchases[0].seatId)).toBe('window');
+  });
+
+  it('入力中に選んだ席が埋まったら、条件に合う別の席を選び直し、同じ手続きのまま買う', () => {
+    let market = createMarket(windowRound, timer);
+    const started = untilProcedure(rusher(market), market);
+    const target = started.npc.target!;
+    // 入力している間に、ほかの人がその席を買う。
+    market = ok(
+      purchase(started.market, {
+        participantId: 'someone',
+        site: 'site3',
+        flightId: target.flightId,
+        seatId: target.seatId,
+        procedureId: 'x',
+        now: started.now,
+      }),
+    );
+    const { market: after } = finish(started.npc, market, started.now);
+    const bought = after.purchases.find((p) => p.participantId === 'npc-seat');
+    expect(bought?.procedureId).toBe(target.procedureId);
+    expect(bought?.seatId).not.toBe(target.seatId);
+    expect(seatPosition(bought?.seatId ?? '')).toBe('window');
+  });
+
+  it('条件に合う席が残っていない便は選ばない', () => {
+    let market = createMarket(windowRound, timer);
+    // 最安の 09:10 便の窓側の席を、すべてほかの人が買う。
+    const windows = market.seats['HND-TSA-0910'].filter((s) => seatPosition(s) === 'window');
+    windows.forEach((seatId, i) => {
+      market = ok(
+        purchase(market, {
+          participantId: `p${i}`,
+          site: 'site3',
+          flightId: 'HND-TSA-0910',
+          seatId,
+          procedureId: `p${i}`,
+          now: START,
+        }),
+      );
+    });
+    const started = untilProcedure(rusher(market), market);
+    expect(started.npc.target?.flightId).not.toBe('HND-TSA-0910');
   });
 });
 

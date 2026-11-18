@@ -36,6 +36,7 @@ const round2 = buildRound({
     checkedBaggageKg: 23,
     excludedOperatingAirlineIds: ['B'],
     arrivalTerminal: 2,
+    seatPositions: ['window', 'aisle'],
   },
   flights: [
     // 安いが、08:00より前に出発する。
@@ -45,12 +46,12 @@ const round2 = buildRound({
       { dep: '07:30', arr: '09:55' },
       { seller: 'A', terminal: 2, baggageKg: 23, seats: 8 },
     ),
-    // 条件を満たす。座席が少ない。
+    // 条件を満たす。座席が少ない（窓側か通路側の席は6席）。
     flight(
       'HND-GMP-0840',
       { from: 'HND', to: 'GMP', date: '2027-06-02' },
       { dep: '08:40', arr: '11:05' },
-      { seller: 'C', terminal: 2, baggageKg: 23, seats: 6 },
+      { seller: 'C', terminal: 2, baggageKg: 23, seats: 9 },
     ),
     // 販売は航空会社Dだが、運航は不可の航空会社B。
     flight(
@@ -59,12 +60,12 @@ const round2 = buildRound({
       { dep: '09:15', arr: '11:40' },
       { seller: 'D', operator: 'B', terminal: 2, baggageKg: 23, seats: 8 },
     ),
-    // 条件を満たす。高いが、座席が多い。
+    // 条件を満たす。高いが、座席が多い（窓側か通路側の席は8席）。
     flight(
       'HND-GMP-1005',
       { from: 'HND', to: 'GMP', date: '2027-06-02' },
       { dep: '10:05', arr: '12:30' },
-      { seller: 'D', terminal: 2, baggageKg: 23, seats: 8 },
+      { seller: 'D', terminal: 2, baggageKg: 23, seats: 12 },
     ),
     // 料金に含まれる手荷物が20kgで足りない。
     flight(
@@ -121,6 +122,7 @@ const round3 = buildRound({
     checkedBaggageKg: 20,
     excludedOperatingAirlineIds: ['A'],
     arrivalTerminal: 1,
+    seatPositions: ['window'],
   },
   flights: [
     // 10:00より前に出発する。
@@ -130,12 +132,12 @@ const round3 = buildRound({
       { dep: '09:25', arr: '13:20' },
       { seller: 'B', terminal: 1, baggageKg: 20, seats: 8 },
     ),
-    // 条件を満たす。サイト1の販売枠は1枚。
+    // 条件を満たす。サイト1の販売枠は1枚。空席は多いが、窓側は7席。
     flight(
       'NRT-HKG-1040',
       { from: 'NRT', to: 'HKG', date: '2027-07-15' },
       { dep: '10:40', arr: '14:35' },
-      { seller: 'C', terminal: 1, baggageKg: 20, seats: 6 },
+      { seller: 'C', terminal: 1, baggageKg: 20, seats: 21 },
     ),
     // 運航が不可の航空会社A。
     flight(
@@ -144,12 +146,12 @@ const round3 = buildRound({
       { dep: '11:10', arr: '15:05' },
       { seller: 'D', operator: 'A', terminal: 1, baggageKg: 20, seats: 8 },
     ),
-    // 条件を満たす。乗継1回で、到着は期限の5分前。サイト1の販売枠は1枚。
+    // 条件を満たす。乗継1回で、到着は期限の5分前。サイト1の販売枠は1枚。窓側は7席。
     flight(
       'NRT-HKG-1230',
       { from: 'NRT', to: 'HKG', date: '2027-07-15' },
       { dep: '12:30', arr: '17:55' },
-      { seller: 'B', terminal: 1, stops: 1, baggageKg: 20, seats: 8 },
+      { seller: 'B', terminal: 1, stops: 1, baggageKg: 20, seats: 21 },
     ),
     // 18:00より後に着く。
     flight(
@@ -206,6 +208,7 @@ const round4 = buildRound({
     checkedBaggageKg: 15,
     excludedOperatingAirlineIds: ['D'],
     arrivalTerminal: 2,
+    seatPositions: ['aisle'],
   },
   flights: [
     // 12:00より前に出発する。
@@ -215,12 +218,12 @@ const round4 = buildRound({
       { dep: '11:30', arr: '14:15' },
       { seller: 'A', terminal: 2, baggageKg: 20, seats: 8 },
     ),
-    // 条件を満たす。
+    // 条件を満たす。空席は多いが、通路側は7席。
     flight(
       'HND-TPE-1225',
       { from: 'HND', to: 'TPE', date: '2027-08-21' },
       { dep: '12:25', arr: '15:10' },
-      { seller: 'B', terminal: 2, baggageKg: 20, seats: 8 },
+      { seller: 'B', terminal: 2, baggageKg: 20, seats: 21 },
     ),
     // 販売は航空会社Cだが、運航は不可の航空会社D。
     flight(
@@ -236,12 +239,12 @@ const round4 = buildRound({
       { dep: '15:10', arr: '17:55' },
       { seller: 'A', terminal: 1, baggageKg: 20, seats: 8 },
     ),
-    // 条件を満たす。到着は期限ちょうどの20:30。
+    // 条件を満たす。到着は期限ちょうどの20:30。通路側は7席。
     flight(
       'HND-TPE-1745',
       { from: 'HND', to: 'TPE', date: '2027-08-21' },
       { dep: '17:45', arr: '20:30' },
-      { seller: 'B', terminal: 2, baggageKg: 20, seats: 8 },
+      { seller: 'B', terminal: 2, baggageKg: 20, seats: 21 },
     ),
     // 台北（松山）行き。到着空港を取り違えると、これが安く見える。
     flight(

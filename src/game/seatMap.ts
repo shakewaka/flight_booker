@@ -1,5 +1,5 @@
 import { unitFromString } from './random';
-import type { Flight } from './types';
+import type { Flight, SeatPosition } from './types';
 
 // 座席表（企画書「7 予約サイトの3種類」の座席番号の選択）。ReactやDOMに依存しない。
 // 仮案：どの便も、エコノミー席の一区画（21〜30列、A〜F、通路をはさんで3席ずつ）を見せる。
@@ -12,9 +12,6 @@ export const CABIN = {
   /** 左から順の席の記号。C と D の間が通路。 */
   letters: ['A', 'B', 'C', 'D', 'E', 'F'],
 } as const;
-
-/** 窓側・真ん中・通路側。 */
-export type SeatPosition = 'window' | 'middle' | 'aisle';
 
 const POSITION_BY_LETTER: Record<string, SeatPosition> = {
   A: 'window',

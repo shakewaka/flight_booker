@@ -1,6 +1,7 @@
 import type { InputField } from '../../game/judge';
 import type { TripViolation } from '../../game/requirements';
 import type { RoundResultRow } from '../../game/results';
+import { SEAT_POSITION_LABEL, seatPosition } from '../../game/seatMap';
 import { formatYen } from '../format';
 import { SITE_INFO } from '../sites/siteInfo';
 import './round-results.css';
@@ -45,6 +46,7 @@ const VIOLATION_LABEL: Record<TripViolation, string> = {
   checkedBaggage: '受託手荷物が足りない',
   operatingAirline: '運航が不可の航空会社',
   arrivalTerminal: '到着ターミナルが条件と違う',
+  seat: '座席の位置が条件と違う',
 };
 
 /** 予約タイムを表示する。計測はミリ秒、表示は小数第2位まで。 */
@@ -136,6 +138,12 @@ export function RoundResults({
                 item.kind === 'violation' ? (
                   <li key={item.violation}>
                     {VIOLATION_LABEL[item.violation]}
+                    {item.violation === 'seat' && player.seatId && (
+                      <span className="results__values">
+                        （予約した席：{player.seatId}・
+                        {SEAT_POSITION_LABEL[seatPosition(player.seatId)]}）
+                      </span>
+                    )}
                     <span className="results__item-amount">
                       {FATAL.includes(item.violation)
                         ? '旅行が成り立たないため、時間切れと同じ扱い'

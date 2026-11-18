@@ -1,5 +1,5 @@
 import type { BookingEntry, PassengerInput, PaymentInput } from './booking';
-import { findTripViolations, type TripViolation } from './requirements';
+import { findBookingViolations, type TripViolation } from './requirements';
 import type { RoundScenario } from './types';
 
 // ラウンド終了時の判定。予約の入力内容をパスポート・カードと、便を条件メモと照らし合わせる。
@@ -100,11 +100,15 @@ export function findInputMistakes(entry: BookingEntry, scenario: RoundScenario):
   return mistakes.sort((a, b) => order.indexOf(a.field) - order.indexOf(b.field));
 }
 
-/** 予約1件を判定する。 */
-export function judgeBooking(entry: BookingEntry, scenario: RoundScenario): BookingJudgement {
+/** 予約1件を判定する。席の条件は、購入した席（seatId）で調べる。 */
+export function judgeBooking(
+  entry: BookingEntry,
+  scenario: RoundScenario,
+  seatId?: string,
+): BookingJudgement {
   const flight = scenario.flights.find((candidate) => candidate.id === entry.flightId);
   return {
     inputMistakes: findInputMistakes(entry, scenario),
-    tripViolations: flight ? findTripViolations(flight, scenario.requirements) : [],
+    tripViolations: flight ? findBookingViolations(flight, seatId, scenario.requirements) : [],
   };
 }

@@ -1,5 +1,6 @@
 import { airportName } from './airports';
 import { formatJapaneseDate } from './dates';
+import { SEAT_POSITION_LABEL, seatPosition } from './seatMap';
 import type { Airline, Airport, Flight, TripMemo, TripRequirements } from './types';
 
 /**
@@ -14,9 +15,38 @@ export type TripViolation =
   | 'arrivalTime'
   | 'checkedBaggage'
   | 'operatingAirline'
-  | 'arrivalTerminal';
+  | 'arrivalTerminal'
+  /** 座席の位置。便ではなく、予約した席で決まる。 */
+  | 'seat';
 
-/** 便が条件メモを満たしているかを調べる。空の配列なら、すべて満たしている。 */
+/** 席が、条件メモの席の条件を満たしているか。席の条件がなければ、どの席でもよい。 */
+export function seatMeetsRequirements(seatId: string, requirements: TripRequirements): boolean {
+  return (
+    requirements.seatPositions === undefined ||
+    requirements.seatPositions.includes(seatPosition(seatId))
+  );
+}
+
+/**
+ * 予約の条件違反。便の条件違反に、予約した席の条件違反を足す。
+ * 席が分からない（記録がない）ときは、便だけで判定する。
+ */
+export function findBookingViolations(
+  flight: Flight,
+  seatId: string | undefined,
+  requirements: TripRequirements,
+): TripViolation[] {
+  const violations = findTripViolations(flight, requirements);
+  if (seatId !== undefined && !seatMeetsRequirements(seatId, requirements)) {
+    violations.push('seat');
+  }
+  return violations;
+}
+
+/**
+ * 便が条件メモを満たしているかを調べる。空の配列なら、すべて満たしている。
+ * 席の条件は便では決まらないので、ここでは調べない（findBookingViolations で調べる）。
+ */
 export function findTripViolations(
   flight: Flight,
   requirements: TripRequirements,
@@ -77,6 +107,13 @@ export function describeRequirements(
   }
   if (requirements.arrivalTerminal !== undefined) {
     conditions.push(`到着はターミナル${requirements.arrivalTerminal}`);
+  }
+  if (requirements.seatPositions !== undefined) {
+    // 座席表の並び（窓側・真ん中・通路側）の順に書く。
+    const labels = (['window', 'middle', 'aisle'] as const)
+      .filter((position) => requirements.seatPositions?.includes(position))
+      .map((position) => SEAT_POSITION_LABEL[position]);
+    conditions.push(`座席は${labels.join('か')}`);
   }
 
   return {

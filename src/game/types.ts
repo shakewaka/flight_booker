@@ -61,7 +61,12 @@ export type TripRequirements = {
   /** 実際に運航する会社として使えない航空会社。 */
   excludedOperatingAirlineIds: string[];
   arrivalTerminal?: number;
+  /** 座ってよい席の位置。省略すると、席の条件なし。 */
+  seatPositions?: SeatPosition[];
 };
+
+/** 席の位置。窓側・真ん中・通路側。 */
+export type SeatPosition = 'window' | 'middle' | 'aisle';
 
 /** 条件メモに表示する文章。 */
 export type TripMemo = {

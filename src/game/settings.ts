@@ -21,6 +21,8 @@ export type PricingSettings = {
 export type NpcSettings = {
   /** 検索結果を見て、次の候補を決めるまでの時間。 */
   thinkMs: { min: number; max: number };
+  /** 座席表から席を選ぶ時間。選んだ席が埋まって選び直すときにもかかる。 */
+  seatPickMs: { min: number; max: number };
   /** 搭乗者情報（パスポートの6項目）の入力にかかる時間。 */
   passengerInputMs: { min: number; max: number };
   /** 決済情報（カードの4項目）の入力にかかる時間。 */
@@ -97,6 +99,8 @@ export const prototypeSettings: GameSettings = {
     // プレイテストで「NPCが強すぎる」との声があり、急いだ人間（約120秒）と競る速さに遅くした。
     // 幅を狭くして、遅いNPCも売り切れ後に選び直して時間内に買えるようにした。
     thinkMs: { min: 4_000, max: 8_000 },
+    // 仮：席を選ぶのは数秒。
+    seatPickMs: { min: 2_000, max: 4_000 },
     passengerInputMs: { min: 72_000, max: 88_000 },
     paymentInputMs: { min: 36_000, max: 47_000 },
     speed: { min: 0.92, max: 1.1 },

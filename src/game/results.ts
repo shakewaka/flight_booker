@@ -2,7 +2,7 @@ import type { BookingEntry } from './booking';
 import { judgeBooking, type InputMistake } from './judge';
 import type { MarketState } from './market';
 import { computePenalty, RANK_TIER, type PenaltyResult } from './penalty';
-import { findTripViolations, type TripViolation } from './requirements';
+import { findBookingViolations, type TripViolation } from './requirements';
 import type { PenaltySettings } from './settings';
 import type { Participant, RoundScenario, SiteId, Yen } from './types';
 
@@ -32,6 +32,8 @@ export type RoundResultRow = {
   timeMs: number;
   site: SiteId | null;
   flightId: string | null;
+  /** 購入した席の座席番号。予約していなければ null。 */
+  seatId: string | null;
   inputMistakes: InputMistake[];
   tripViolations: TripViolation[];
   /** 順位の段（src/game/penalty.ts の RANK_TIER）。同じ集計金額なら、段の小さい方が上。 */
@@ -66,6 +68,7 @@ export function computeRoundResults(options: {
         tier: RANK_TIER.failed,
         site: null,
         flightId: null,
+        seatId: null,
         inputMistakes: [],
         tripViolations: [],
       };
@@ -77,10 +80,12 @@ export function computeRoundResults(options: {
     const flight = scenario.flights.find((candidate) => candidate.id === bought.flightId);
     // 入力内容の記録がない参加者は、入力ミスなしとして扱う。条件違反は便から判定する。
     const judgement = entry
-      ? judgeBooking(entry, scenario)
+      ? judgeBooking(entry, scenario, bought.seatId)
       : {
           inputMistakes: [],
-          tripViolations: flight ? findTripViolations(flight, scenario.requirements) : [],
+          tripViolations: flight
+            ? findBookingViolations(flight, bought.seatId, scenario.requirements)
+            : [],
         };
     const penalty = computePenalty(judgement, scenario.maxPrice, penaltySettings);
     return {
@@ -102,6 +107,7 @@ export function computeRoundResults(options: {
           : RANK_TIER.valid,
       site: bought.site,
       flightId: bought.flightId,
+      seatId: bought.seatId,
       ...judgement,
     };
   });

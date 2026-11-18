@@ -1,8 +1,8 @@
 import type { BookingEntry } from './booking';
 import type { InputField } from './judge';
-import { placeHold, purchase, purchaseOf, type MarketState } from './market';
+import { freeSeats, placeHold, purchase, purchaseOf, type MarketState } from './market';
 import { pickInRange, unitFromString } from './random';
-import { findTripViolations, type TripViolation } from './requirements';
+import { findTripViolations, seatMeetsRequirements, type TripViolation } from './requirements';
 import { searchDurationMs } from './search';
 import { countSite3Viewers, withSite3Prices, type Site3Viewing } from './site3Pricing';
 import type { GameSettings } from './settings';
@@ -25,7 +25,13 @@ export type NpcKind = 'rusher' | 'careful' | 'watcher' | 'explorer';
 
 export const NPC_KINDS: NpcKind[] = ['rusher', 'careful', 'watcher', 'explorer'];
 
-export type NpcTarget = { flightId: string; site: SiteId; procedureId: string };
+export type NpcTarget = {
+  flightId: string;
+  site: SiteId;
+  procedureId: string;
+  /** 選んだ席。おまかせなら undefined。サイト2では、確保した後はこの席を買う。 */
+  seatId?: string;
+};
 
 export type NpcState = {
   id: string;
@@ -119,7 +125,30 @@ const OVERLOOKABLE: TripViolation[] = [
   'operatingAirline',
   'arrivalTerminal',
   'checkedBaggage',
+  'seat',
 ];
+
+/**
+ * NPCが選ぶ席。席の条件がなければ、おまかせ（undefined）。
+ * 条件があれば、空いている席のうち条件に合う席を、NPCごとに決まる順で選ぶ。
+ * 席の条件を見落としているNPCは、条件を気にせず空いている席から選ぶ。
+ * 選べる席がなければ null。
+ */
+function pickSeat(
+  npc: NpcState,
+  market: MarketState,
+  flightId: string,
+  scenario: RoundScenario,
+): string | undefined | null {
+  if (scenario.requirements.seatPositions === undefined) return undefined;
+  const candidates = freeSeats(market, flightId).filter(
+    (seat) => npc.overlooked === 'seat' || seatMeetsRequirements(seat, scenario.requirements),
+  );
+  if (candidates.length === 0) return null;
+  return [...candidates].sort(
+    (a, b) => unitFromString(`${npc.seed}|seat|${a}`) - unitFromString(`${npc.seed}|seat|${b}`),
+  )[0];
+}
 
 /** NPCが打ち間違えることのある入力の項目。 */
 const TYPO_FIELDS: InputField[] = [
@@ -157,16 +186,23 @@ function validFlightsBy(
     .sort((a, b) => priceOf(a) - priceOf(b));
 }
 
-/** 次に試す「便とサイト」。まだ試していない組み合わせから、型の順番で選ぶ。 */
+type Candidate = { flightId: string; site: SiteId; seatId: string | undefined };
+
+/**
+ * 次に試す「便とサイト」と席。まだ試していない組み合わせから、型の順番で選ぶ。
+ * 座席表で条件に合う席が空いていない便は、選ばない（座席表は人間にも見えている）。
+ */
 function nextCandidate(
   npc: NpcState,
   scenario: RoundScenario,
   market: MarketState,
   sites: SiteId[] = SITE_ORDER[npc.kind],
-): { flightId: string; site: SiteId } | null {
+): Candidate | null {
   for (const site of sites) {
     for (const flightId of validFlightsBy(npc, scenario, market, site)) {
-      if (!npc.tried.includes(keyOf(flightId, site))) return { flightId, site };
+      if (npc.tried.includes(keyOf(flightId, site))) continue;
+      const seatId = pickSeat(npc, market, flightId, scenario);
+      if (seatId !== null) return { flightId, site, seatId };
     }
   }
   return null;
@@ -174,18 +210,42 @@ function nextCandidate(
 
 function startProcedure(
   npc: NpcState,
-  candidate: { flightId: string; site: SiteId },
+  candidate: Candidate,
   ctx: NpcContext,
   inputScale = 1,
 ): NpcState {
   const attempt = npc.attempt + 1;
   const next = { ...npc, attempt };
+  // 席の条件があるときは、座席表から席を選ぶ時間もかかる。
+  const seatMs =
+    candidate.seatId === undefined ? 0 : durationOf(next, 'seat', ctx.settings.npc.seatPickMs);
   return {
     ...next,
     phase: 'passenger',
     target: { ...candidate, procedureId: `${npc.id}-${attempt}` },
     readyAt:
-      ctx.now + durationOf(next, 'passenger', ctx.settings.npc.passengerInputMs) * inputScale,
+      ctx.now +
+      seatMs +
+      durationOf(next, 'passenger', ctx.settings.npc.passengerInputMs) * inputScale,
+  };
+}
+
+/**
+ * 選んだ席だけが埋まっていたとき。条件に合う別の席が空いていれば、席を選び直して同じ手続きを続ける
+ * （入力は残っている）。空いていなければ、候補を選び直す。
+ */
+function reselectSeat(npc: NpcState, market: MarketState, ctx: NpcContext): NpcState {
+  const target = npc.target;
+  const seatId = target ? pickSeat(npc, market, target.flightId, ctx.scenario) : null;
+  if (!target || seatId === null) return recover(npc, ctx);
+  return {
+    ...npc,
+    target: { ...target, seatId },
+    readyAt:
+      ctx.now +
+      Math.round(
+        pickInRange(`${npc.seed}|reseat|${ctx.now}`, ctx.settings.npc.seatPickMs) * npc.speed,
+      ),
   };
 }
 
@@ -260,10 +320,16 @@ export function stepNpc(
       const held = placeHold(market, {
         participantId: npc.id,
         flightId: target.flightId,
+        seatId: target.seatId,
         procedureId: target.procedureId,
         now: ctx.now,
       });
-      if (!held.ok) return { npc: recover(npc, ctx), market };
+      if (!held.ok) {
+        return {
+          npc: held.reason === 'seat-taken' ? reselectSeat(npc, market, ctx) : recover(npc, ctx),
+          market,
+        };
+      }
       if (npc.kind === 'explorer' && !npc.backup) {
         // 保険を確保したら、もっと安いサイト1を狙う。入力は手元にあるので少し速い。
         const cheaper = nextCandidate(npc, ctx.scenario, held.state, ['site1']);
@@ -297,6 +363,7 @@ export function stepNpc(
     participantId: npc.id,
     site: target.site,
     flightId: target.flightId,
+    seatId: target.seatId,
     procedureId: target.procedureId,
     now: ctx.now,
   });
@@ -308,6 +375,7 @@ export function stepNpc(
     };
   }
   if (bought.reason === 'closed') return { npc: { ...npc, phase: 'gave-up' }, market };
+  if (bought.reason === 'seat-taken') return { npc: reselectSeat(npc, market, ctx), market };
   return { npc: recover(npc, ctx), market };
 }
 

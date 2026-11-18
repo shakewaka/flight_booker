@@ -4,6 +4,7 @@ import type { BookingEntry } from './booking';
 import { createMarket, purchase, type MarketState } from './market';
 import { computeRoundResults, rankRows } from './results';
 import { createRoundTimer } from './roundClock';
+import { seatPosition } from './seatMap';
 import type { Participant, SiteId } from './types';
 
 const penaltySettings = { identityMistakeRate: 0.1, paymentMistakeRate: 0.05 };
@@ -233,6 +234,50 @@ describe('computeRoundResults', () => {
       ['player', 2],
       ['npc-2', 3],
     ]);
+  });
+
+  it('条件に合わない席を買った予約は、正しい便でも条件違反として最高値で集計し、席を記録する', () => {
+    const windowRound = {
+      ...sampleRound,
+      requirements: { ...sampleRound.requirements, seatPositions: ['window' as const] },
+    };
+    let market = createMarket(windowRound, timer);
+    const seats = market.seats['HND-TSA-0910'];
+    const aisle = seats.find((s) => seatPosition(s) === 'aisle')!;
+    const window = seats.find((s) => seatPosition(s) === 'window')!;
+    const buySeat = (participantId: string, seatId: string, atMs: number) => {
+      const r = purchase(market, {
+        participantId,
+        site: 'site1',
+        flightId: 'HND-TSA-0910',
+        seatId,
+        procedureId: participantId,
+        now: START + atMs,
+      });
+      if (!r.ok) throw new Error(r.reason);
+      market = r.state;
+    };
+    buySeat('player', aisle, 40_000);
+    buySeat('npc-1', window, 90_000);
+    const rows = computeRoundResults({
+      participants: people,
+      market,
+      entries: [entryOf('HND-TSA-0910')],
+      scenario: windowRound,
+      timeoutPenalty: 0,
+      penaltySettings,
+    });
+    const player = rows.find((r) => r.participant.id === 'player');
+    expect(player).toEqual(
+      expect.objectContaining({
+        amount: windowRound.maxPrice,
+        seatId: aisle,
+        tripViolations: ['seat'],
+      }),
+    );
+    // 窓側の席を買ったNPCは、遅くても上。
+    expect(rows[0].participant.id).toBe('npc-1');
+    expect(rows[0].tripViolations).toEqual([]);
   });
 
   it('入力ミスがいくつ重なっても、正しい便の予約は時間切れの金額より悪くならず、未予約より上', () => {

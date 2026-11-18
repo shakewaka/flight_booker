@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { describeRequirements, findTripViolations } from './requirements';
+import {
+  describeRequirements,
+  findBookingViolations,
+  findTripViolations,
+  seatMeetsRequirements,
+} from './requirements';
 import type { Flight, TripRequirements } from './types';
 
 const requirements: TripRequirements = {
@@ -28,6 +33,45 @@ const validFlight: Flight = {
   checkedBaggageKg: 20,
   seats: 6,
 };
+
+describe('席の条件', () => {
+  const withSeat = (seatPositions: TripRequirements['seatPositions']) => ({
+    ...requirements,
+    seatPositions,
+  });
+
+  it('席の条件がなければ、どの席でもよい', () => {
+    expect(seatMeetsRequirements('25B', requirements)).toBe(true);
+  });
+
+  it('窓側の条件なら、A・F は満たし、B・C は満たさない', () => {
+    const window = withSeat(['window']);
+    expect(['21A', '30F'].map((s) => seatMeetsRequirements(s, window))).toEqual([true, true]);
+    expect(['21B', '21C'].map((s) => seatMeetsRequirements(s, window))).toEqual([false, false]);
+  });
+
+  it('便の違反に、席の違反を足す。席が分からなければ、便だけで判定する', () => {
+    const aisle = withSeat(['aisle']);
+    expect(findBookingViolations(validFlight, '22C', aisle)).toEqual([]);
+    expect(findBookingViolations(validFlight, '22A', aisle)).toEqual(['seat']);
+    expect(findBookingViolations(validFlight, undefined, aisle)).toEqual([]);
+    expect(findBookingViolations({ ...validFlight, arrivalTerminal: 2 }, '22A', aisle)).toEqual([
+      'arrivalTerminal',
+      'seat',
+    ]);
+  });
+
+  it('便の判定（findTripViolations）では、席の条件を調べない', () => {
+    expect(findTripViolations(validFlight, withSeat(['window']))).toEqual([]);
+  });
+
+  it('条件メモには、席の条件を座席表の並びの順で書く', () => {
+    const memo = (seatPositions: TripRequirements['seatPositions']) =>
+      describeRequirements(withSeat(seatPositions), [], []).conditions.at(-1);
+    expect(memo(['window'])).toBe('座席は窓側');
+    expect(memo(['aisle', 'window'])).toBe('座席は窓側か通路側');
+  });
+});
 
 describe('findTripViolations', () => {
   it('すべての条件を満たす便は、違反なし', () => {

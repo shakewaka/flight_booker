@@ -1,6 +1,6 @@
 import { flightDurationMinutes } from './airports';
-import { findTripViolations } from './requirements';
-import { cabinSeats } from './seatMap';
+import { findTripViolations, seatMeetsRequirements } from './requirements';
+import { cabinSeats, openSeatsOf } from './seatMap';
 import type { RoundScenario } from './types';
 
 /**
@@ -66,10 +66,11 @@ export function findScenarioProblems(scenario: RoundScenario, participantCount: 
     }
   }
 
-  // 条件を満たす便の座席は、全員が購入できる数を用意する。
+  // 条件を満たす便の、条件を満たす席は、全員が購入できる数を用意する。
   const validSeats = scenario.flights
     .filter((flight) => findTripViolations(flight, scenario.requirements).length === 0)
-    .reduce((total, flight) => total + flight.seats, 0);
+    .flatMap((flight) => openSeatsOf(flight))
+    .filter((seat) => seatMeetsRequirements(seat, scenario.requirements)).length;
   if (validSeats < participantCount) {
     problems.push(`条件を満たす便の座席が${validSeats}席で、参加者${participantCount}人に足りない`);
   }
