@@ -6,6 +6,8 @@ type SeatPickerProps = {
   openSeats: string[];
   /** 今、誰も確保・購入していない席。 */
   freeSeats: string[];
+  /** 他の参加者がサイト2で確保している席（手続き中）。 */
+  heldSeats: string[];
   /** 選んでいる席。おまかせなら 'auto'、まだ選んでいなければ null。 */
   selected: string | null;
   onSelect: (seat: string) => void;
@@ -13,12 +15,20 @@ type SeatPickerProps = {
 
 /**
  * 座席表。空いている席だけを押せる。他の参加者が確保・購入すると、その場で埋まった表示に変わる。
+ * 他の参加者が確保している席は「手続き中」として分けて出す。
  * 横向きのタブレットに合わせて、左を機首側にし、列（21〜30）を横に、A〜F を縦に並べる。
  * C と D の間が通路。
  */
-export function SeatPicker({ openSeats, freeSeats, selected, onSelect }: SeatPickerProps) {
+export function SeatPicker({
+  openSeats,
+  freeSeats,
+  heldSeats,
+  selected,
+  onSelect,
+}: SeatPickerProps) {
   const open = new Set(openSeats);
   const free = new Set(freeSeats);
+  const held = new Set(heldSeats);
   const rows = cabinRows();
 
   return (
@@ -48,7 +58,14 @@ export function SeatPicker({ openSeats, freeSeats, selected, onSelect }: SeatPic
           ...rows.map((row) => {
             const seat = `${row}${letter}`;
             const available = free.has(seat);
-            const state = !open.has(seat) ? 'occupied' : available ? 'free' : 'taken';
+            const state = !open.has(seat)
+              ? 'occupied'
+              : available
+                ? 'free'
+                : held.has(seat)
+                  ? 'held'
+                  : 'taken';
+            const stateLabel = state === 'held' ? ' 手続き中' : available ? '' : ' 予約済み';
             return (
               <button
                 key={seat}
@@ -60,8 +77,8 @@ export function SeatPicker({ openSeats, freeSeats, selected, onSelect }: SeatPic
                 ].join(' ')}
                 disabled={!available}
                 aria-pressed={seat === selected}
-                aria-label={`${seat}（${SEAT_POSITION_LABEL[seatPosition(seat)]}）${available ? '' : ' 予約済み'}`}
-                title={`${seat}（${SEAT_POSITION_LABEL[seatPosition(seat)]}）`}
+                aria-label={`${seat}（${SEAT_POSITION_LABEL[seatPosition(seat)]}）${stateLabel}`}
+                title={`${seat}（${SEAT_POSITION_LABEL[seatPosition(seat)]}）${stateLabel}`}
                 onClick={() => onSelect(seat)}
               />
             );
@@ -80,6 +97,10 @@ export function SeatPicker({ openSeats, freeSeats, selected, onSelect }: SeatPic
         <li>
           <span className="seat-picker__seat seat-picker__seat--occupied" />
           予約済み
+        </li>
+        <li>
+          <span className="seat-picker__seat seat-picker__seat--held" />
+          手続き中（他の人が確保）
         </li>
         <li>A・F 窓側 ／ B・E 真ん中 ／ C・D 通路側</li>
       </ul>

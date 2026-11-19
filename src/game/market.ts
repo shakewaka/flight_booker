@@ -26,6 +26,8 @@ export type Hold = {
   procedureId: string;
   /** 確保した時点の総額。確保後に値上げしない。 */
   price: Yen;
+  /** START から確保までの時間。誰がいつ席を押さえたかを見せるのに使う。 */
+  heldAtMs: number;
 };
 
 export type Purchase = {
@@ -220,6 +222,7 @@ export function placeHold(
     seatId: seat.seatId,
     procedureId,
     price: market.site2Price[flightId],
+    heldAtMs: bookingTimeMs(market.timer, now),
   };
   return {
     ok: true,

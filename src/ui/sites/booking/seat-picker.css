@@ -64,6 +64,26 @@
   cursor: not-allowed;
 }
 
+/* 他の参加者が確保している席。まだ買われていないが、取られかけている。 */
+.booking .seat-picker__seat--held {
+  border: 2px dashed #e67e22;
+  background: #fdebd3;
+  cursor: not-allowed;
+  animation: seat-held 1.6s ease-in-out infinite;
+}
+
+@keyframes seat-held {
+  50% {
+    background: #f8c88f;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .booking .seat-picker__seat--held {
+    animation: none;
+  }
+}
+
 .booking .seat-picker__seat--selected {
   border-color: var(--site-color);
   background: var(--site-color);
