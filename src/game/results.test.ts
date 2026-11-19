@@ -171,12 +171,13 @@ describe('computeRoundResults', () => {
       timeoutPenalty: 0,
       penaltySettings,
     });
-    // 最高値 67,000円 の 10%（本人確認の入力ミス） = 6,700円
+    // 最高値 80,500円 の 10%（本人確認の入力ミス） = 8,050円 → 100円単位で 8,100円
+    expect(sampleRound.maxPrice).toBe(80_500);
     expect(rows.find((r) => r.participant.id === 'player')).toEqual(
       expect.objectContaining({
         status: 'booked',
         purchasePrice: 31_000,
-        amount: 31_000 + 6_700,
+        amount: 31_000 + 8_100,
         timeMs: 40_000,
         tripViolations: [],
         inputMistakes: [{ field: 'passportNumber', entered: 'PX0417268', expected: 'PX0417286' }],
@@ -199,8 +200,8 @@ describe('computeRoundResults', () => {
       timeoutPenalty: 0,
       penaltySettings,
     });
-    // 67,000円 の 5% = 3,350円 → 100円単位で 3,400円
-    expect(rows[0].amount).toBe(31_000 + 3_400);
+    // 80,500円 の 5% = 4,025円 → 100円単位で 4,000円
+    expect(rows[0].amount).toBe(31_000 + 4_000);
   });
 
   it('条件違反の予約は、安く早く買っても最高値で集計し、遅く正しい便を買った人より下になる', () => {
@@ -283,15 +284,19 @@ describe('computeRoundResults', () => {
   it('入力ミスがいくつ重なっても、正しい便の予約は時間切れの金額より悪くならず、未予約より上', () => {
     let market = createMarket(sampleRound, timer);
     market = buy(market, 'player', 'site1', 'HND-TSA-0910', 40_000);
+    const allWrong = entryOf('HND-TSA-0910', {
+      surname: 'X',
+      givenName: 'X',
+      birthDate: 'X',
+      nationality: 'X',
+      passportNumber: 'X',
+      passportExpiry: 'X',
+    });
     const entries = [
-      entryOf('HND-TSA-0910', {
-        surname: 'X',
-        givenName: 'X',
-        birthDate: 'X',
-        nationality: 'X',
-        passportNumber: 'X',
-        passportExpiry: 'X',
-      }),
+      {
+        ...allWrong,
+        payment: { holderName: 'X', cardNumber: 'X', cardExpiry: 'X', securityCode: 'X' },
+      },
     ];
     const rows = computeRoundResults({
       participants: people,
@@ -302,8 +307,8 @@ describe('computeRoundResults', () => {
       penaltySettings,
     });
     const player = rows.find((r) => r.participant.id === 'player');
-    // 31,000 ＋ 6,700 × 6 = 71,200円 → 時間切れの金額 67,000円 で止まる。
-    expect(player?.penalty?.total).toBe(40_200);
+    // 31,000 ＋ 8,100 × 6 ＋ 4,000 × 4 = 95,600円 → 時間切れの金額 80,500円 で止まる。
+    expect(player?.penalty?.total).toBe(64_600);
     expect(player?.amount).toBe(sampleRound.maxPrice);
     expect(rows[0].participant.id).toBe('player');
   });

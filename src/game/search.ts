@@ -1,4 +1,5 @@
-import type { Flight, FlightOffers, RoundScenario, Yen } from './types';
+import { quoteFlight, type MarketState, type SiteQuote } from './market';
+import type { Flight, FlightOffers, RoundScenario, SiteId, Yen } from './types';
 
 // 比較サイトの検索。ReactやDOMに依存せず、現在時刻は引数で受け取る。
 // 航空会社・到着時刻・到着ターミナルは、企画書のとおり検索では絞り込めない。
@@ -18,8 +19,10 @@ export type SearchQuery = {
 export type SearchResult = {
   flight: Flight;
   offers: FlightOffers;
-  /** 一覧に「〜」付きで出す金額。3サイトのうち最も安い価格。 */
-  lowestPrice: Yen;
+  /** 検索した時点の、予約サイトごとの価格と買えるかどうか。 */
+  quotes: Record<SiteId, SiteQuote>;
+  /** 一覧に「〜」付きで出す金額。買えるサイトのうち最も安い価格。どこでも買えなければ null。 */
+  lowestPrice: Yen | null;
 };
 
 /** 検索を始められない理由。null なら検索できる。条件メモと合っているかは調べない。 */
@@ -32,8 +35,15 @@ export function findQueryError(query: SearchQuery): string | null {
   return null;
 }
 
-/** 条件に合う便を、安い順に返す。同額なら出発の早い順。 */
-export function searchFlights(scenario: RoundScenario, query: SearchQuery): SearchResult[] {
+/**
+ * 条件に合う便を、安い順に返す。同額なら出発の早い順。どこでも買えない便は最後に並べる。
+ * 価格は、検索した時点の市場の価格。売り切れで価格が上がっていれば、上がった価格を返す。
+ */
+export function searchFlights(
+  scenario: RoundScenario,
+  query: SearchQuery,
+  market: MarketState,
+): SearchResult[] {
   const results: SearchResult[] = [];
 
   for (const flight of scenario.flights) {
@@ -46,13 +56,18 @@ export function searchFlights(scenario: RoundScenario, query: SearchQuery): Sear
 
     const offers = scenario.offers.find((offer) => offer.flightId === flight.id);
     if (!offers) continue;
-    const lowestPrice = Math.min(offers.site1.price, offers.site2.price, offers.site3.minPrice);
-    results.push({ flight, offers, lowestPrice });
+    const quotes = quoteFlight(market, flight.id);
+    const prices = Object.values(quotes)
+      .filter((quote) => quote.available)
+      .map((quote) => quote.price);
+    const lowestPrice = prices.length > 0 ? Math.min(...prices) : null;
+    results.push({ flight, offers, quotes, lowestPrice });
   }
 
   return results.sort(
     (a, b) =>
-      a.lowestPrice - b.lowestPrice || a.flight.departureTime.localeCompare(b.flight.departureTime),
+      (a.lowestPrice ?? Infinity) - (b.lowestPrice ?? Infinity) ||
+      a.flight.departureTime.localeCompare(b.flight.departureTime),
   );
 }
 

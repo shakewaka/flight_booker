@@ -257,3 +257,45 @@
 .booking__empty {
   margin: 40px;
 }
+
+.booking {
+  position: relative;
+}
+
+.booking__price-raised {
+  margin-top: 2px;
+  color: #c0392b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* サイト1の売り切れを知らせるポップアップ。ページ全体を覆い、スクロールしても見える位置に出す。 */
+.booking__modal-backdrop {
+  position: absolute;
+  z-index: 10;
+  inset: 0;
+  background: rgb(20 30 45 / 45%);
+}
+
+.booking__modal {
+  position: sticky;
+  top: 120px;
+  width: min(440px, calc(100% - 48px));
+  margin: 120px auto 0;
+  padding: 22px 26px;
+  border-top: 5px solid #c0392b;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 30%);
+  line-height: 1.8;
+}
+
+.booking__modal h2 {
+  margin: 0 0 6px;
+  color: #c0392b;
+  font-size: 20px;
+}
+
+.booking__modal p {
+  margin: 0;
+}

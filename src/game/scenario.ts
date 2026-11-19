@@ -54,13 +54,16 @@ export function findScenarioProblems(scenario: RoundScenario, participantCount: 
     if (site3.minPrice > site3.maxPrice) {
       problems.push(`便 ${flight.id}：サイト3の下限が上限を超えている`);
     }
+    if (site3.raised.minPrice <= site3.minPrice || site3.raised.maxPrice <= site3.maxPrice) {
+      problems.push(`便 ${flight.id}：サイト3の上の価格帯が下の価格帯より高くない`);
+    }
     if (site1.fareQuota < 1 || site1.fareQuota > flight.seats) {
       problems.push(`便 ${flight.id}：サイト1の販売枠が1〜座席数の範囲にない`);
     }
     // ラウンド最高値は、条件を満たす便のどの価格よりも低くならない。
     if (
       findTripViolations(flight, scenario.requirements).length === 0 &&
-      Math.max(site1.price, site2.price, site3.maxPrice) > scenario.maxPrice
+      Math.max(site1.price, site2.price, site3.raised.maxPrice) > scenario.maxPrice
     ) {
       problems.push(`便 ${flight.id}：ラウンド最高値を超える価格がある`);
     }

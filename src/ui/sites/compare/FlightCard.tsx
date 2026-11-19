@@ -17,15 +17,16 @@ const SITES = SITE_IDS.map((id) => ({ id, ...SITE_INFO[id] }));
 /** 検索結果の1件。検索で絞り込めない条件も、ここで確認できるようにする。 */
 export function FlightCard({ result, scenario, onBook }: FlightCardProps) {
   const [showPrices, setShowPrices] = useState(false);
-  const { flight, offers } = result;
+  const { flight, quotes } = result;
 
   const cityOf = (code: string) => airportName(scenario.airports, code);
   const duration = flightDurationMinutes(scenario.airports, flight);
   const airlineOf = (id: string) => scenario.airlines.find((a) => a.id === id)?.name ?? id;
-  const priceText: Record<SiteId, string> = {
-    site1: formatYen(offers.site1.price),
-    site2: formatYen(offers.site2.price),
-    site3: `${formatYen(offers.site3.minPrice)}〜${formatYen(offers.site3.maxPrice)}`,
+  // 検索した時点の価格。サイト3は閲覧人数で変わるので、その時点の価格に「変動」と添える。
+  const priceText = (site: SiteId) => {
+    const quote = quotes[site];
+    if (!quote.available) return '売り切れ';
+    return site === 'site3' ? `${formatYen(quote.price)}（変動）` : formatYen(quote.price);
   };
 
   return (
@@ -65,8 +66,14 @@ export function FlightCard({ result, scenario, onBook }: FlightCardProps) {
 
       <div className="flight-card__side">
         <p className="flight-card__price">
-          {formatYen(result.lowestPrice)}
-          <span>〜</span>
+          {result.lowestPrice === null ? (
+            '満席'
+          ) : (
+            <>
+              {formatYen(result.lowestPrice)}
+              <span>〜</span>
+            </>
+          )}
         </p>
         <button
           type="button"
@@ -85,7 +92,15 @@ export function FlightCard({ result, scenario, onBook }: FlightCardProps) {
             {SITES.map((site) => (
               <tr key={site.id}>
                 <th scope="row">{site.name}</th>
-                <td className="flight-card__site-price">{priceText[site.id]}</td>
+                <td
+                  className={
+                    quotes[site.id].available
+                      ? 'flight-card__site-price'
+                      : 'flight-card__site-price flight-card__site-price--sold-out'
+                  }
+                >
+                  {priceText(site.id)}
+                </td>
                 <td className="flight-card__site-feature">{site.feature}</td>
                 <td>
                   <button type="button" onClick={() => onBook(site.id, flight.id)}>

@@ -15,6 +15,8 @@ export type PricingSettings = {
   /** サイト1の価格に対する、サイト3の下限と上限の倍率。 */
   site3MinRate: number;
   site3MaxRate: number;
+  /** サイト3の下の価格帯が売り切れた後、価格の範囲に掛ける倍率。 */
+  site3RaisedRate: number;
 };
 
 /** 仮：NPCの動き方。時間はすべて、NPCごとの速さの倍率（speed）を掛ける前の値。 */
@@ -94,6 +96,8 @@ export const prototypeSettings: GameSettings = {
     site2Rate: 1.33,
     site3MinRate: 1.05,
     site3MaxRate: 1.67,
+    // 仮：サイト3の安い価格帯が売り切れたら、2割上げる。
+    site3RaisedRate: 1.2,
   },
   npc: {
     // プレイテストで「NPCが強すぎる」との声があり、急いだ人間（約120秒）と競る速さに遅くした。

@@ -8,7 +8,7 @@ import {
   type PaymentInput,
 } from '../../../game/booking';
 import { formatJapaneseDate } from '../../../game/dates';
-import { freeSeats, type MarketRefusal } from '../../../game/market';
+import { freeSeats, site3FareRaised, type MarketRefusal } from '../../../game/market';
 import { SEAT_POSITION_LABEL, seatPosition } from '../../../game/seatMap';
 import type { RoundScenario, SiteId } from '../../../game/types';
 import { formatYen } from '../../format';
@@ -112,6 +112,8 @@ export function BookingPage({
   const [seat, setSeat] = useState<string | null>(null);
   /** 席が埋まって座席の画面へ戻ったとき、席を選び直したら戻る手順。 */
   const [resumeStep, setResumeStep] = useState<Step | null>(null);
+  /** サイト1で、最安料金のチケットが売り切れたことを知らせるポップアップ。 */
+  const [soldOutNotice, setSoldOutNotice] = useState(false);
 
   const info = SITE_INFO[site];
   const flight = scenario.flights.find((candidate) => candidate.id === flightId);
@@ -127,6 +129,8 @@ export function BookingPage({
         : market.site3Price[flightId];
 
   const trend = usePriceTrend(price);
+  // サイト3で、安い価格帯のチケットが売り切れて価格が上がっているか。
+  const raised = site === 'site3' && site3FareRaised(market, flightId);
   if (!flight) return <p className="booking__empty">この便は見つかりませんでした。</p>;
 
   const cityOf = (code: string) => airportName(scenario.airports, code);
@@ -145,6 +149,11 @@ export function BookingPage({
       setSeat(null);
       setResumeStep(from);
       setStep('seat');
+      return;
+    }
+    // サイト1の料金の売り切れは、ポップアップで知らせる。
+    if (reason === 'fare-sold-out') {
+      setSoldOutNotice(true);
       return;
     }
     setRefusal(reason);
@@ -257,6 +266,11 @@ export function BookingPage({
             <span className="booking__price-note">
               {trend === 'up' ? '▲ 値上がり' : trend === 'down' ? '▼ 値下がり' : '現在の価格'}
               ／いま{site3Viewers[flightId] ?? 0}人が閲覧中
+            </span>
+          )}
+          {raised && (
+            <span className="booking__price-raised" role="status">
+              安い価格のチケットが売り切れたため、価格が上がりました
             </span>
           )}
           {site === 'site2' && hold && <span className="booking__price-note">確保した価格</span>}
@@ -399,6 +413,40 @@ export function BookingPage({
             </button>
           </div>
         </form>
+      )}
+
+      {soldOutNotice && (
+        <div className="booking__modal-backdrop">
+          <div
+            className="booking__modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby={`${tabId}-sold-out-title`}
+            aria-describedby={`${tabId}-sold-out-text`}
+          >
+            <h2 id={`${tabId}-sold-out-title`}>売り切れました</h2>
+            <p id={`${tabId}-sold-out-text`}>
+              この料金（{formatYen(price)}）のチケットは売り切れました。
+              別の便や、別の予約サイトを探してください。
+            </p>
+            <div className="booking__actions">
+              <button type="button" onClick={() => setSoldOutNotice(false)}>
+                閉じる
+              </button>
+              <button
+                type="button"
+                className="booking__primary"
+                autoFocus
+                onClick={() => {
+                  setSoldOutNotice(false);
+                  onBackToCompare();
+                }}
+              >
+                比較サイトで探し直す
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

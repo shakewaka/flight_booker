@@ -7,7 +7,12 @@ import {
   searchFlights,
   type SearchQuery,
 } from './search';
+import { createMarket, purchase, type MarketState } from './market';
+import { createRoundTimer } from './roundClock';
 import type { RoundScenario } from './types';
+
+const timer = createRoundTimer(0, { startCountdownMs: 10_000, roundTimeLimitMs: 300_000 });
+const marketOf = (scenario: RoundScenario) => createMarket(scenario, timer);
 
 const query: SearchQuery = {
   originCode: 'HND',
@@ -19,7 +24,50 @@ const query: SearchQuery = {
 };
 
 const ids = (q: SearchQuery, scenario: RoundScenario = sampleRound) =>
-  searchFlights(scenario, q).map((result) => result.flight.id);
+  searchFlights(scenario, q, marketOf(scenario)).map((result) => result.flight.id);
+
+describe('searchFlights の価格', () => {
+  /** 便 flightId を、サイト site で n 人に買わせた市場。 */
+  const sold = (market: MarketState, flightId: string, site: 'site1' | 'site3', n: number) => {
+    for (let i = 0; i < n; i += 1) {
+      const result = purchase(market, {
+        participantId: `${site}-${i}`,
+        site,
+        flightId,
+        procedureId: `${site}-${i}`,
+        now: timer.startAt,
+      });
+      if (!result.ok) throw new Error(result.reason);
+      market = result.state;
+    }
+    return market;
+  };
+  const resultOf = (market: MarketState, flightId: string) =>
+    searchFlights(sampleRound, query, market).find((r) => r.flight.id === flightId)!;
+
+  it('サイト1の最安料金が売り切れた後に検索すると、サイト1は買えない表示になり、一覧の金額も変わる', () => {
+    const fresh = resultOf(marketOf(sampleRound), 'HND-TSA-0910');
+    expect(fresh.quotes.site1.available).toBe(true);
+    // 09:10発のサイト1の販売枠は2枚。
+    const after = resultOf(sold(marketOf(sampleRound), 'HND-TSA-0910', 'site1', 2), 'HND-TSA-0910');
+    expect(after.quotes.site1.available).toBe(false);
+    expect(after.lowestPrice).toBe(Math.min(after.quotes.site2.price, after.quotes.site3.price));
+  });
+
+  it('サイト3の安い価格帯が売り切れた後に検索すると、上がった価格を出す', () => {
+    const offer = sampleRound.offers.find((o) => o.flightId === 'HND-TSA-0910')!;
+    const market = sold(marketOf(sampleRound), 'HND-TSA-0910', 'site3', offer.site3.fareQuota);
+    expect(resultOf(market, 'HND-TSA-0910').quotes.site3.price).toBe(offer.site3.raised.minPrice);
+  });
+
+  it('満席の便は、どのサイトでも買えない表示にし、一覧の最後に並べる', () => {
+    // 09:10発は6席。
+    const market = sold(marketOf(sampleRound), 'HND-TSA-0910', 'site3', 6);
+    const results = searchFlights(sampleRound, query, market);
+    expect(results.at(-1)?.flight.id).toBe('HND-TSA-0910');
+    expect(results.at(-1)?.lowestPrice).toBeNull();
+  });
+});
 
 describe('searchFlights', () => {
   it('条件メモと合わない便も含めて、検索条件に合う便を安い順に返す', () => {
@@ -33,7 +81,7 @@ describe('searchFlights', () => {
   });
 
   it('一覧の金額は、3サイトのうち最も安い価格になる', () => {
-    const first = searchFlights(sampleRound, query)[0];
+    const first = searchFlights(sampleRound, query, marketOf(sampleRound))[0];
     expect(first.lowestPrice).toBe(first.offers.site1.price);
   });
 
@@ -45,7 +93,9 @@ describe('searchFlights', () => {
         site1: { ...offer.site1, price: 10_000 },
       })),
     };
-    const order = searchFlights(sameFare, query).map((result) => result.flight.departureTime);
+    const order = searchFlights(sameFare, query, marketOf(sameFare)).map(
+      (result) => result.flight.departureTime,
+    );
     expect(order).toEqual(['07:05', '09:10', '09:25', '11:05', '16:20']);
   });
 

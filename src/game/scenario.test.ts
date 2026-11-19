@@ -64,7 +64,10 @@ describe('findScenarioProblems', () => {
 
   it('条件を満たす便に、ラウンド最高値を1円でも超える価格があると、問題として返す', () => {
     const { site3 } = offerOf(FLIGHT);
-    const scenario = withOffer(FLIGHT, { site3: { ...site3, maxPrice: sampleRound.maxPrice + 1 } });
+    // サイト3は、売り切れで上がった後の価格帯の上限まで調べる。
+    const scenario = withOffer(FLIGHT, {
+      site3: { ...site3, raised: { ...site3.raised, maxPrice: sampleRound.maxPrice + 1 } },
+    });
     expect(findScenarioProblems(scenario, participantCount)).toEqual([
       `便 ${FLIGHT}：ラウンド最高値を超える価格がある`,
     ]);

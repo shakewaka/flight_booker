@@ -1,9 +1,10 @@
-import type { MarketState } from './market';
+import { site3SoldCount, type MarketState } from './market';
 import type { Site3Settings } from './settings';
 import type { FlightOffers, Yen } from './types';
 
 // サイト3の価格。その便のサイト3を開いている参加者の割合で、価格の範囲の中を上下する。
 // 人数はタブ数ではなく参加者数で数える（同じ人の複数タブは1人）。購入済みの人は数えない。
+// 下の価格帯の販売枠が売り切れると、上の価格帯の範囲で同じように上下する。
 
 /** 参加者ごとに、サイト3で開いている便の一覧。 */
 export type Site3Viewing = Record<string, string[]>;
@@ -21,9 +22,17 @@ export function countSite3Viewers(
   return counts;
 }
 
-/** 閲覧人数から、サイト3の価格を求める。 */
-export function site3PriceFor(
+/** 今の価格の範囲。下の価格帯の販売枠が売り切れていれば、上の価格帯。 */
+export function site3Band(
   offer: FlightOffers['site3'],
+  sold: number,
+): { minPrice: Yen; maxPrice: Yen } {
+  return sold >= offer.fareQuota ? offer.raised : offer;
+}
+
+/** 閲覧人数から、サイト3の価格を求める。offer には今の価格の範囲（site3Band）を渡す。 */
+export function site3PriceFor(
+  offer: { minPrice: Yen; maxPrice: Yen },
   viewers: number,
   participantCount: number,
   settings: Site3Settings,
@@ -49,7 +58,7 @@ export function withSite3Prices(
   const site3Price = { ...market.site3Price };
   for (const offer of offers) {
     const price = site3PriceFor(
-      offer.site3,
+      site3Band(offer.site3, site3SoldCount(market, offer.flightId)),
       viewers[offer.flightId] ?? 0,
       participantCount,
       settings,

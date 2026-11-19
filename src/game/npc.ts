@@ -1,10 +1,17 @@
 import type { BookingEntry } from './booking';
 import type { InputField } from './judge';
-import { freeSeats, placeHold, purchase, purchaseOf, type MarketState } from './market';
+import {
+  freeSeats,
+  placeHold,
+  purchase,
+  purchaseOf,
+  site3SoldCount,
+  type MarketState,
+} from './market';
 import { pickInRange, unitFromString } from './random';
 import { findTripViolations, seatMeetsRequirements, type TripViolation } from './requirements';
 import { searchDurationMs } from './search';
-import { countSite3Viewers, withSite3Prices, type Site3Viewing } from './site3Pricing';
+import { countSite3Viewers, site3Band, withSite3Prices, type Site3Viewing } from './site3Pricing';
 import type { GameSettings } from './settings';
 import type { RoundScenario, SiteId } from './types';
 
@@ -274,11 +281,11 @@ function recover(npc: NpcState, ctx: NpcContext): NpcState {
   };
 }
 
-/** サイト3の値下がりを待つNPCが、今の価格で買うかどうか。 */
+/** サイト3の値下がりを待つNPCが、今の価格で買うかどうか。価格帯が上がっていれば、上の価格帯の中で考える。 */
 function site3PriceIsGood(market: MarketState, ctx: NpcContext, flightId: string): boolean {
   const offer = ctx.scenario.offers.find((candidate) => candidate.flightId === flightId);
   if (!offer) return true;
-  const { minPrice, maxPrice } = offer.site3;
+  const { minPrice, maxPrice } = site3Band(offer.site3, site3SoldCount(market, flightId));
   const limit = minPrice + (maxPrice - minPrice) * ctx.settings.npc.site3BuyBelowRate;
   const remaining = market.timer.deadlineAt - ctx.now;
   return (

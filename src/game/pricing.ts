@@ -9,6 +9,8 @@ export type FareInput = {
   fareLevel: number;
   /** サイト1の料金で販売できる上限数。 */
   fareQuota: number;
+  /** サイト3の下の価格帯で販売できる上限数。省略するとサイト1と同じ数。 */
+  site3Quota?: number;
 };
 
 function roundToStep(amount: number, step: Yen): Yen {
@@ -32,18 +34,36 @@ export function createFlightOffers(fare: FareInput, pricing: PricingSettings): F
   const above = (rate: number, floor: Yen) =>
     Math.max(floor + step, roundToStep(site1Price * rate, step));
   const site3Min = above(pricing.site3MinRate, site1Price);
+  const site3Max = above(pricing.site3MaxRate, site3Min);
+  // 上の価格帯は、下の価格帯を一定の倍率で上げる。下の価格帯より必ず高くする。
+  const raisedMin = Math.max(
+    site3Min + step,
+    roundToStep(site3Min * pricing.site3RaisedRate, step),
+  );
+  const raisedMax = Math.max(
+    site3Max + step,
+    raisedMin + step,
+    roundToStep(site3Max * pricing.site3RaisedRate, step),
+  );
 
   return {
     flightId: fare.flightId,
     site1: { price: site1Price, fareQuota: fare.fareQuota },
     site2: { price: above(pricing.site2Rate, site1Price) },
-    site3: { minPrice: site3Min, maxPrice: above(pricing.site3MaxRate, site3Min) },
+    site3: {
+      minPrice: site3Min,
+      maxPrice: site3Max,
+      fareQuota: fare.site3Quota ?? fare.fareQuota,
+      raised: { minPrice: raisedMin, maxPrice: raisedMax },
+    },
   };
 }
 
 /** 販売条件に含まれる価格のうち、最も高い金額。条件を満たす便だけを渡すと、ラウンド最高値になる。 */
 export function highestPrice(offers: FlightOffers[]): Yen {
   return Math.max(
-    ...offers.map((offer) => Math.max(offer.site1.price, offer.site2.price, offer.site3.maxPrice)),
+    ...offers.map((offer) =>
+      Math.max(offer.site1.price, offer.site2.price, offer.site3.raised.maxPrice),
+    ),
   );
 }

@@ -302,6 +302,10 @@
   white-space: nowrap;
 }
 
+.flight-card__site-price--sold-out {
+  color: #9aa4b2;
+}
+
 .flight-card__site-feature {
   color: #5a6576;
   font-size: 13px;

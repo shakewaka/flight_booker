@@ -1,6 +1,6 @@
 import { bookingTimeMs, isBookingOpen, type RoundTimer } from './roundClock';
 import { openSeatsOf } from './seatMap';
-import type { RoundScenario, SiteId, Yen } from './types';
+import type { FlightOffers, RoundScenario, SiteId, Yen } from './types';
 
 // 1ラウンドの市場。全予約サイト・全参加者（人間とNPC）が、この処理だけを通して席を確保・購入する。
 // 画面やタブごとに在庫を持たない。状態は書き換えず、操作のたびに新しい状態を返す。
@@ -53,8 +53,10 @@ export type MarketState = {
   site1Quota: Record<string, number>;
   site1Price: Record<string, Yen>;
   site2Price: Record<string, Yen>;
-  /** 便ごとのサイト3の現在の価格。閲覧人数による変動は、NPCを作るときに加える。 */
+  /** 便ごとのサイト3の現在の価格。閲覧人数と価格帯で変わる（src/game/site3Pricing.ts）。 */
   site3Price: Record<string, Yen>;
+  /** 便ごとのサイト3の販売条件。下の価格帯が売り切れたときに、価格を上げるのに使う。 */
+  site3Fares: Record<string, FlightOffers['site3']>;
   holds: Hold[];
   purchases: Purchase[];
   /** 次に作る確保の番号。 */
@@ -103,6 +105,7 @@ export function createMarket(
     site2Price: byFlight((offer) => offer.site2.price),
     // 仮：閲覧人数を数えるまでは、サイト3は下限の価格から始める。
     site3Price: byFlight((offer) => offer.site3.minPrice),
+    site3Fares: byFlight((offer) => offer.site3),
     holds: [],
     purchases: [],
     nextHoldNumber: 1,
@@ -290,13 +293,57 @@ export function purchase(
   // 本人の、まだ購入していない他の確保を解放する。
   holds = holds.filter((hold) => hold.participantId !== participantId);
 
+  const next = { ...market, holds, purchases: [...market.purchases, bought] };
   return {
     ok: true,
     state: closeIfEnoughPurchased(
-      { ...market, holds, purchases: [...market.purchases, bought] },
+      site === 'site3' ? raiseSite3IfSoldOut(next, flightId) : next,
       now,
     ),
     value: bought,
+  };
+}
+
+/** サイト3で売れた数。 */
+export function site3SoldCount(market: MarketState, flightId: string): number {
+  return market.purchases.filter((p) => p.flightId === flightId && p.site === 'site3').length;
+}
+
+/** サイト3の、下の価格帯の販売枠が売り切れたか。 */
+export function site3FareRaised(market: MarketState, flightId: string): boolean {
+  const fare = market.site3Fares[flightId];
+  return fare !== undefined && site3SoldCount(market, flightId) >= fare.fareQuota;
+}
+
+/**
+ * サイト3の購入で下の価格帯がちょうど売り切れたら、その場で価格を上の価格帯へ移す。
+ * 下の価格帯の中での位置（閲覧人数による上がり幅）は保つ。次の閲覧人数の更新で、計算し直される。
+ */
+function raiseSite3IfSoldOut(market: MarketState, flightId: string): MarketState {
+  const fare = market.site3Fares[flightId];
+  if (!fare) return market;
+  if (site3SoldCount(market, flightId) !== fare.fareQuota) return market;
+  const offset = market.site3Price[flightId] - fare.minPrice;
+  const price = Math.min(fare.raised.maxPrice, fare.raised.minPrice + Math.max(0, offset));
+  return { ...market, site3Price: { ...market.site3Price, [flightId]: price } };
+}
+
+/** 予約サイトごとの、今の価格と買えるかどうか。比較サイトの検索結果に使う。 */
+export type SiteQuote = { price: Yen; available: boolean };
+
+/**
+ * 便の、予約サイトごとの今の価格。
+ * 空席がなければどのサイトも買えない。サイト1は、最安料金の販売枠が尽きていても買えない。
+ */
+export function quoteFlight(market: MarketState, flightId: string): Record<SiteId, SiteQuote> {
+  const seats = availableSeats(market, flightId) > 0;
+  return {
+    site1: {
+      price: market.site1Price[flightId],
+      available: seats && site1FareRemaining(market, flightId) > 0,
+    },
+    site2: { price: market.site2Price[flightId], available: seats },
+    site3: { price: market.site3Price[flightId], available: seats },
   };
 }
 

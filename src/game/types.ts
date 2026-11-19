@@ -125,10 +125,17 @@ export type FlightOffers = {
   site2: {
     price: Yen;
   };
-  /** 変動型。閲覧人数で価格が動く。範囲だけを決め、計算式は市場処理で決める。 */
+  /**
+   * 変動型。閲覧人数で価格が動く。範囲だけを決め、計算式は市場処理で決める。
+   * 下の価格帯の販売枠が売り切れると、上の価格帯（raised）に上がる。
+   */
   site3: {
     minPrice: Yen;
     maxPrice: Yen;
+    /** 下の価格帯で販売できる上限数。物理的な座席数とは別に数える。 */
+    fareQuota: number;
+    /** 下の価格帯が売り切れた後の価格の範囲。 */
+    raised: { minPrice: Yen; maxPrice: Yen };
   };
 };
 

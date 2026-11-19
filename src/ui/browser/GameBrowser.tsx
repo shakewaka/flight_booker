@@ -120,6 +120,7 @@ export function GameBrowser({
             <ComparePage
               tabId={tab.id}
               scenario={scenario}
+              store={store}
               now={now}
               deadlineAt={deadlineAt}
               searchRange={searchRange}

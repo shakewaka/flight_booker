@@ -10,8 +10,10 @@ import {
   purchase,
   purchaseOf,
   purchasesUntilClose,
+  quoteFlight,
   releaseHold,
   site1FareRemaining,
+  site3FareRaised,
   type MarketResult,
   type MarketState,
 } from './market';
@@ -35,7 +37,12 @@ function smallMarket(seats: number, site1Quota: number): MarketState {
         flightId: 'F',
         site1: { price: 10_000, fareQuota: site1Quota },
         site2: { price: 13_000 },
-        site3: { minPrice: 11_000, maxPrice: 18_000 },
+        site3: {
+          minPrice: 11_000,
+          maxPrice: 18_000,
+          fareQuota: 2,
+          raised: { minPrice: 13_000, maxPrice: 21_500 },
+        },
       },
     ],
   };
@@ -282,6 +289,63 @@ describe('価格', () => {
     const bought = buy(market, 'A', 'site3');
     expect(bought.ok && bought.value.price).toBe(16_500);
   });
+
+  it('サイト3の安い価格帯が売り切れたら、その場で上の価格帯へ上がり、次の人は上がった価格で買う', () => {
+    // 下の価格帯は 11,000〜18,000円で2枚、上の価格帯は 13,000〜21,500円。
+    let market = smallMarket(5, 5);
+    market = ok(buy(market, 'A', 'site3'));
+    expect(site3FareRaised(market, 'F')).toBe(false);
+    expect(market.site3Price.F).toBe(11_000);
+    market = ok(buy(market, 'B', 'site3'));
+    expect(site3FareRaised(market, 'F')).toBe(true);
+    expect(market.site3Price.F).toBe(13_000);
+    const third = buy(market, 'C', 'site3');
+    expect(third.ok && third.value.price).toBe(13_000);
+  });
+
+  it('価格帯が上がるとき、閲覧人数による上がり幅は保つ（上の価格帯の上限は超えない）', () => {
+    let market: MarketState = { ...smallMarket(5, 5), site3Price: { F: 12_500 } };
+    market = ok(buy(market, 'A', 'site3'));
+    market = ok(buy(market, 'B', 'site3'));
+    // 下の価格帯の下限から +1,500円 の位置 → 上の価格帯の下限 13,000円 + 1,500円
+    expect(market.site3Price.F).toBe(14_500);
+
+    let top: MarketState = { ...smallMarket(5, 5), site3Price: { F: 18_000 } };
+    top = ok(buy(top, 'A', 'site3'));
+    top = ok(buy(top, 'B', 'site3'));
+    expect(top.site3Price.F).toBe(20_000);
+  });
+
+  it('サイト1・2の購入では、サイト3の価格帯は上がらない', () => {
+    let market = smallMarket(5, 5);
+    market = ok(buy(market, 'A', 'site1'));
+    market = ok(buy(market, 'B', 'site1'));
+    expect(site3FareRaised(market, 'F')).toBe(false);
+    expect(market.site3Price.F).toBe(11_000);
+  });
+});
+
+describe('quoteFlight', () => {
+  it('予約サイトごとに今の価格と、買えるかどうかを返す', () => {
+    let market = smallMarket(3, 1);
+    expect(quoteFlight(market, 'F')).toEqual({
+      site1: { price: 10_000, available: true },
+      site2: { price: 13_000, available: true },
+      site3: { price: 11_000, available: true },
+    });
+    // サイト1の販売枠が尽きると、サイト1だけ買えない。
+    market = ok(buy(market, 'A', 'site1'));
+    expect(quoteFlight(market, 'F').site1.available).toBe(false);
+    expect(quoteFlight(market, 'F').site2.available).toBe(true);
+    // 満席になると、どこも買えない。
+    market = ok(buy(market, 'B', 'site3'));
+    market = ok(hold(market, 'C', 'c-1'));
+    expect(Object.values(quoteFlight(market, 'F')).map((q) => q.available)).toEqual([
+      false,
+      false,
+      false,
+    ]);
+  });
 });
 
 describe('確保', () => {
@@ -427,7 +491,12 @@ describe('早めの締切', () => {
         flightId: 'F',
         site1: { price: 10_000, fareQuota: 10 },
         site2: { price: 13_000 },
-        site3: { minPrice: 11_000, maxPrice: 18_000 },
+        site3: {
+          minPrice: 11_000,
+          maxPrice: 18_000,
+          fareQuota: 2,
+          raised: { minPrice: 13_000, maxPrice: 21_500 },
+        },
       },
     ];
     return createMarket({ ...scenario, offers }, timer, { closeWhenPurchased });

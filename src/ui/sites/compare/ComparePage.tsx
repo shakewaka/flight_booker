@@ -6,11 +6,13 @@ import {
   searchDurationMs,
   searchFlights,
   type SearchQuery,
+  type SearchResult,
 } from '../../../game/search';
 import { airportName } from '../../../game/airports';
 import { formatJapaneseDate } from '../../../game/dates';
 import type { RoundScenario, SiteId } from '../../../game/types';
 import { formatRemaining } from '../../format';
+import type { MarketStore } from '../../marketStore';
 import { enterToNext } from '../../enterToNext';
 import { DateField } from './DateField';
 import { FlightCard } from './FlightCard';
@@ -21,6 +23,8 @@ type ComparePageProps = {
   /** このページを開いているタブ。 */
   tabId: string;
   scenario: RoundScenario;
+  /** 市場。検索が終わった時点の価格と空席を、検索結果に使う。 */
+  store: MarketStore;
   now: number;
   /** 締切の時刻。検索結果の取得時刻を、残り時間で表すのに使う。 */
   deadlineAt: number;
@@ -38,6 +42,11 @@ type RunningSearch = {
   durationMs: number;
   /** 進捗バーの動き方。検索条件から決まる。 */
   curve: ProgressCurve;
+  /**
+   * 検索結果。検索が終わった時点の価格と空席で作り、その後は変えない（再検索すると新しくなる）。
+   * 検索中は null。
+   */
+  results: SearchResult[] | null;
 };
 
 const BAGGAGE_OPTIONS = [0, 15, 20, 23];
@@ -62,6 +71,7 @@ const EMPTY_QUERY: SearchQuery = {
 export function ComparePage({
   tabId,
   scenario,
+  store,
   now,
   deadlineAt,
   searchRange,
@@ -83,6 +93,14 @@ export function ComparePage({
     onStatusChange(tabId, title, busy);
   }, [onStatusChange, tabId, title, busy]);
 
+  // 検索が終わったら、その時点の市場から結果を作って残す（描画中に状態を直す React の書き方）。
+  if (search !== null && !busy && search.results === null) {
+    setSearch({
+      ...search,
+      results: searchFlights(scenario, search.query, store.getSnapshot().market),
+    });
+  }
+
   const update = (change: Partial<SearchQuery>) =>
     setDraft((previous) => ({ ...previous, ...change }));
 
@@ -96,6 +114,7 @@ export function ComparePage({
       startedAt: performance.now(),
       durationMs: searchDurationMs(draft, searchRange),
       curve: createProgressCurve(queryHash(draft)),
+      results: null,
     });
   };
 
@@ -212,8 +231,9 @@ type SearchOutcomeProps = {
 function SearchOutcome({ scenario, search, now, deadlineAt, onBook }: SearchOutcomeProps) {
   const progress = getSearchProgress(search.startedAt, search.durationMs, now);
 
-  if (progress.kind === 'searching') {
-    const shown = progressAt(search.curve, progress.ratio);
+  if (progress.kind === 'searching' || search.results === null) {
+    // 検索が終わった直後、結果を作るまでの一瞬は、進捗バーを満たして見せる。
+    const shown = progress.kind === 'searching' ? progressAt(search.curve, progress.ratio) : 1;
     const stage = SEARCH_STAGES.find((candidate) => shown < candidate.until);
     return (
       <div className="compare-progress" role="status">
@@ -226,8 +246,7 @@ function SearchOutcome({ scenario, search, now, deadlineAt, onBook }: SearchOutc
     );
   }
 
-  // 検索ボタンを押した時点の条件で、結果を作る。
-  const results = searchFlights(scenario, search.query);
+  const { results } = search;
   const fetchedAt = formatRemaining(deadlineAt - progress.completedAt);
   const { query } = search;
   const cityOf = (code: string) => airportName(scenario.airports, code);
