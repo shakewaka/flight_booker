@@ -3,13 +3,15 @@ import type { BookingEntry } from '../../game/booking';
 import { formatJapaneseDate } from '../../game/dates';
 import type { Purchase } from '../../game/market';
 import { SEAT_POSITION_LABEL, seatPosition } from '../../game/seatMap';
-import type { RoundScenario } from '../../game/types';
+import type { Flight, RoundScenario } from '../../game/types';
 import { formatRemaining, formatYen } from '../format';
 import { SITE_INFO } from '../sites/siteInfo';
 import './booked-overlay.css';
 
 type BookedOverlayProps = {
   scenario: RoundScenario;
+  /** 予約した便。ラウンドの途中で足した便もあるので、呼び出し側で探して渡す。 */
+  flight: Flight | undefined;
   purchase: Purchase;
   entry: BookingEntry | undefined;
   remainingMs: number;
@@ -34,6 +36,7 @@ function formatBookingTime(ms: number): string {
  */
 export function BookedOverlay({
   scenario,
+  flight,
   purchase,
   entry,
   remainingMs,
@@ -41,7 +44,6 @@ export function BookedOverlay({
   participantCount,
   closeWhenPurchased,
 }: BookedOverlayProps) {
-  const flight = scenario.flights.find((candidate) => candidate.id === purchase.flightId);
   const cityOf = (code: string) => airportName(scenario.airports, code);
   const passengerName = entry
     ? `${entry.passenger.surname} ${entry.passenger.givenName}`.trim()

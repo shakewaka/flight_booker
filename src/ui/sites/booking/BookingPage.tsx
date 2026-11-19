@@ -8,7 +8,7 @@ import {
   type PaymentInput,
 } from '../../../game/booking';
 import { formatJapaneseDate } from '../../../game/dates';
-import { freeSeats, site3FareRaised, type MarketRefusal } from '../../../game/market';
+import { findFlight, freeSeats, site3FareRaised, type MarketRefusal } from '../../../game/market';
 import { SEAT_POSITION_LABEL, seatPosition } from '../../../game/seatMap';
 import type { RoundScenario, SiteId } from '../../../game/types';
 import { formatStops, formatYen } from '../../format';
@@ -116,7 +116,7 @@ export function BookingPage({
   const [soldOutNotice, setSoldOutNotice] = useState(false);
 
   const info = SITE_INFO[site];
-  const flight = scenario.flights.find((candidate) => candidate.id === flightId);
+  const flight = findFlight(scenario, market, flightId);
 
   const hold = market.holds.find(
     (candidate) => candidate.participantId === participantId && candidate.procedureId === tabId,

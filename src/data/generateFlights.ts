@@ -3,12 +3,15 @@ import { createFlightOffers } from '../game/pricing';
 import { unitFromString } from '../game/random';
 import type { TripViolation } from '../game/requirements';
 import { prototypeSettings } from '../game/settings';
-import type { Airport, Flight, FlightOffers, TripRequirements } from '../game/types';
+import { addFlights, type MarketState } from '../game/market';
+import { searchFlights, type SearchQuery } from '../game/search';
+import type { Airport, Flight, FlightOffers, RoundScenario, TripRequirements } from '../game/types';
 
 // 便の自動生成。手で書いた出題の便に加えて、検索で出てくる候補を増やす。
 // - 正しい区間・日付には、条件を満たす便と、条件を1つだけ満たさない便（わな）を作る。
-// - 間違えやすい区間・日付（前後の日、同じ都市の別の空港、逆方向など）にも便を作り、
-//   検索条件を間違えても候補が出るようにする。
+// - 間違えやすい区間・日付（前後の日、同じ都市の別の空港、逆方向など）にも便を作っておく。
+// - それでも検索の候補が0件なら、検索したときに、その検索条件に合う便を作って足す。
+//   正しい条件以外の便は使い回しでよい（ユーザーの決定）ので、どう検索しても何かしらの候補が出る。
 // - 直行便は高くて速い。乗継便は安いが、乗継の待ち時間の分だけ長くかかる。
 // 乱数ではなく、ラウンドの番号と区間から決まる（毎回同じ便になる）。
 // 時刻・価格の倍率・座席数は試作用の仮の値で、実在の便や運賃ではない。
@@ -37,6 +40,13 @@ const toMinutes = (time: string) => {
 export function shiftDate(isoDate: string, days: number): string {
   const [year, month, day] = isoDate.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day + days));
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+}
+
+/** YYYY-MM-DD の日付を、months か月ずらす（月末を超える日は、翌月に繰り越す）。 */
+export function shiftMonths(isoDate: string, months: number): string {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1 + months, day));
   return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
 }
 
@@ -150,6 +160,11 @@ type RouteOptions = {
    * 省略すると、条件を気にせずに作る。
    */
   requirements?: TripRequirements;
+  /**
+   * 検索条件に合わせて作るときの決まり。検索で絞り込んでも消えない便にする。
+   * sameDayArrival は、出発日と同じ日に着く便にする（到着日に出発日を入れた検索のため）。
+   */
+  fitQuery?: { minBaggageKg: number; nonstopOnly: boolean; sameDayArrival: boolean };
 };
 
 /** 条件を1つだけ外す便（わな）で、外す条件の候補。条件メモにない条件は外せない。 */
@@ -168,7 +183,7 @@ function breakableConditions(requirements: TripRequirements): TripViolation[] {
 
 /** 1つの区間・日付の便を作る。 */
 export function generateRouteFlights(options: RouteOptions): GeneratedFlight[] {
-  const { seed, from, to, date, count, airports, airlineIds, requirements } = options;
+  const { seed, from, to, date, count, airports, airlineIds, requirements, fitQuery } = options;
   const flights: GeneratedFlight[] = [];
   const usedIds = new Set<string>();
   const offset =
@@ -201,7 +216,7 @@ export function generateRouteFlights(options: RouteOptions): GeneratedFlight[] {
         broken === 'stops' ||
         broken === 'via' ||
         broken === 'duration' ||
-        (!nonstopOnly && random('kind') < 0.45),
+        (!nonstopOnly && !fitQuery?.nonstopOnly && random('kind') < 0.45),
       hubs,
       maxDuration: broken === 'duration' ? undefined : maxDuration,
       minDuration: broken === 'duration' ? maxDuration : undefined,
@@ -231,6 +246,10 @@ export function generateRouteFlights(options: RouteOptions): GeneratedFlight[] {
         latest = latestArrival === null ? LAST_DEPARTURE : latestArrival - shape.durationMinutes;
       }
     }
+    if (fitQuery?.sameDayArrival) {
+      // 出発日のうちに着くよう、出発をその分早める。
+      latest = Math.min(latest, 24 * 60 - 5 - offset - shape.durationMinutes);
+    }
     if (latest < after) continue;
 
     let departure = round5(
@@ -254,7 +273,10 @@ export function generateRouteFlights(options: RouteOptions): GeneratedFlight[] {
     if (departure < FIRST_DEPARTURE || departure > LAST_DEPARTURE) continue;
 
     // 手荷物。条件を満たす便は、必要な重さ以上にする。
-    const needed = constrained ? requirements.checkedBaggageKg : 0;
+    const needed = Math.max(
+      constrained ? requirements.checkedBaggageKg : 0,
+      fitQuery?.minBaggageKg ?? 0,
+    );
     let baggageKg =
       random('no-bag') < 0.2 && needed === 0
         ? 0
@@ -300,7 +322,8 @@ export function generateRouteFlights(options: RouteOptions): GeneratedFlight[] {
       );
     }
 
-    let id = `${from}-${to}-${date.slice(5).replace('-', '')}-${clock(departure).replace(':', '')}`;
+    // 便の番号には年も入れる（1年ずれた日の便と重ならないように）。
+    let id = `${from}-${to}-${date.replaceAll('-', '')}-${clock(departure).replace(':', '')}`;
     while (usedIds.has(id)) id += 'X';
     usedIds.add(id);
 
@@ -332,6 +355,7 @@ export function generateRouteFlights(options: RouteOptions): GeneratedFlight[] {
  * 1ラウンド分の自動生成の便。
  * - 正しい区間・日付：correctCount 便（条件を満たす便と、条件を1つ外す便）。
  * - それ以外の、同じ都市どうしでない全区間の、出発日の前日・当日・翌日：otherCount 便ずつ。
+ * それ以外の検索で候補が出ないときは、検索したときに足す（ensureSearchResults）。
  * すでにある便と同じ番号の便は作らない。
  */
 export function generateRoundFlights(options: {
@@ -353,7 +377,7 @@ export function generateRoundFlights(options: {
       for (const days of [-1, 0, 1]) {
         const date = shiftDate(requirements.departureDate, days);
         const correct =
-          days === 0 &&
+          date === requirements.departureDate &&
           origin.code === requirements.originCode &&
           destination.code === requirements.destinationCode;
         generated.push(
@@ -391,4 +415,64 @@ export function generateRoundFlights(options: {
     );
   }
   return { flights, offers };
+}
+
+/** 検索したときに足す便の数。 */
+const EXTRA_COUNT = 3;
+
+/**
+ * 検索の候補が0件になるなら、その検索条件に合う便を作って市場に足す。候補があれば、そのまま返す。
+ * 足す便は、区間・日付・手荷物・直行便のみ・到着日に合わせるので、検索で絞り込まれても消えない。
+ * 同じ検索条件なら、毎回同じ便になる（足し直しても重ならない）。
+ * 正しい区間・日付の便は出題で作ってあるので、ここで足すのは間違えた検索条件の便だけになる。
+ */
+export function ensureSearchResults(
+  scenario: RoundScenario,
+  market: MarketState,
+  query: SearchQuery,
+): MarketState {
+  const codes = new Set(scenario.airports.map((airport) => airport.code));
+  if (!codes.has(query.originCode) || !codes.has(query.destinationCode)) return market;
+  if (query.originCode === query.destinationCode || query.arrivalDate < query.departureDate) {
+    return market;
+  }
+  if (searchFlights(scenario, query, market).length > 0) return market;
+
+  const generated = generateRouteFlights({
+    seed: `${scenario.id}|extra|${query.checkedBaggageKg}|${query.nonstopOnly}`,
+    from: query.originCode,
+    to: query.destinationCode,
+    date: query.departureDate,
+    // 決まりに合わずに作れない回があっても足りるよう、多めに作ってから選ぶ。
+    count: EXTRA_COUNT * 3,
+    airports: scenario.airports,
+    airlineIds: scenario.airlines.map((airline) => airline.id),
+    fitQuery: {
+      minBaggageKg: query.checkedBaggageKg,
+      nonstopOnly: query.nonstopOnly,
+      sameDayArrival: query.arrivalDate === query.departureDate,
+    },
+  });
+  // 出題の便と番号が重ならないよう、検索条件の印を付ける。
+  const mark = `E${query.checkedBaggageKg}${query.nonstopOnly ? 'N' : ''}${query.arrivalDate === query.departureDate ? 'S' : ''}`;
+  const picked = generated.slice(0, EXTRA_COUNT).map((item) => ({
+    ...item,
+    flight: { ...item.flight, id: `${item.flight.id}-${mark}` },
+  }));
+  const offers = picked.map(({ flight, fareLevel, fareQuota }) =>
+    createFlightOffers(
+      {
+        flightId: flight.id,
+        distanceKm: distanceKm(scenario.airports, flight.originCode, flight.destinationCode),
+        fareLevel,
+        fareQuota,
+      },
+      prototypeSettings.pricing,
+    ),
+  );
+  return addFlights(
+    market,
+    picked.map((item) => item.flight),
+    offers,
+  );
 }

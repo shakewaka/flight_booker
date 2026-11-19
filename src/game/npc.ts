@@ -206,14 +206,24 @@ function validFlightsBy(
       : site === 'site2'
         ? market.site2Price[flightId]
         : market.site3Price[flightId];
-  return scenario.flights
-    .filter((flight) =>
-      findTripViolations(flight, scenario.requirements, scenario.airports).every(
-        (v) => v === npc.overlooked,
-      ),
-    )
-    .map((flight) => flight.id)
-    .sort((a, b) => priceOf(a) - priceOf(b));
+  const { requirements } = scenario;
+  return (
+    scenario.flights
+      // NPCは出発地・目的地・出発日を見落とさないので、先にそれで絞る（便が多いので、全便を判定しない）。
+      .filter(
+        (flight) =>
+          flight.originCode === requirements.originCode &&
+          flight.destinationCode === requirements.destinationCode &&
+          flight.departureDate === requirements.departureDate,
+      )
+      .filter((flight) =>
+        findTripViolations(flight, requirements, scenario.airports).every(
+          (v) => v === npc.overlooked,
+        ),
+      )
+      .map((flight) => flight.id)
+      .sort((a, b) => priceOf(a) - priceOf(b))
+  );
 }
 
 type Candidate = { flightId: string; site: SiteId; seatId: string | undefined };

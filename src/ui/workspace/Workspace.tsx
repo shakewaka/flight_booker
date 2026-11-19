@@ -1,5 +1,5 @@
 import { useState, type KeyboardEvent } from 'react';
-import { closedEarly, purchaseOf } from '../../game/market';
+import { closedEarly, findFlight, purchaseOf } from '../../game/market';
 import { computeStandings } from '../../game/match';
 import { describeRequirements } from '../../game/requirements';
 import { computeRoundResults, type RoundResultRow } from '../../game/results';
@@ -157,6 +157,7 @@ export function Workspace({
       {bought && phase.kind === 'playing' && (
         <BookedOverlay
           scenario={scenario}
+          flight={findFlight(scenario, market, bought.flightId)}
           purchase={bought}
           entry={entries.find(
             (entry) =>

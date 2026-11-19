@@ -138,6 +138,8 @@ export function ComparePage({
     const error = findQueryError(draft);
     setFormError(error);
     if (error) return;
+    // 候補が0件になる検索なら、その条件に合う便を足してから検索する。
+    store.ensureSearchResults(draft);
     setSearch(startSearch(draft, performance.now(), searchRange));
   };
 
@@ -276,7 +278,7 @@ function SearchOutcome({ scenario, search, now, deadlineAt, onBook }: SearchOutc
   const searchedWith = [
     `${cityOf(query.originCode)} → ${cityOf(query.destinationCode)}`,
     `${formatJapaneseDate(query.departureDate)}発`,
-    `${formatJapaneseDate(query.arrivalDate)}着`,
+    `${formatJapaneseDate(query.arrivalDate)}までに着`,
     query.checkedBaggageKg > 0 ? `手荷物${query.checkedBaggageKg}kg` : '手荷物なし',
     query.nonstopOnly ? '直行便のみ' : '経由地の指定なし',
   ].join(' ／ ');

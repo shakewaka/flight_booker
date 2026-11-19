@@ -1,5 +1,5 @@
 import type { SearchQuery } from '../../game/search';
-import type { RoundScenario, SiteId } from '../../game/types';
+import type { Flight, RoundScenario, SiteId } from '../../game/types';
 import { SITE_IDS, SITE_INFO } from '../sites/siteInfo';
 import type { TabPage } from './tabs';
 
@@ -50,7 +50,12 @@ function normalize(input: string): string {
  * 比較サイトの検索結果のURLなら、その検索条件で検索し直すページにする。
  * 知らないURLは、ページが見つからない表示にする（実在のサイトは開かない）。
  */
-export function parsePageUrl(input: string, scenario: RoundScenario): TabPage {
+export function parsePageUrl(
+  input: string,
+  scenario: RoundScenario,
+  /** ラウンドの途中で足した便。予約サイトのURLで探す。 */
+  extraFlights: Flight[] = [],
+): TabPage {
   const text = normalize(input);
   let url: URL;
   try {
@@ -82,7 +87,7 @@ export function parsePageUrl(input: string, scenario: RoundScenario): TabPage {
   const site = SITE_IDS.find((id) => SITE_INFO[id].host === host);
   const match = /^\/booking\/([^/]+)\/?$/.exec(url.pathname);
   if (site && match) {
-    const flight = scenario.flights.find(
+    const flight = [...scenario.flights, ...extraFlights].find(
       (candidate) => candidate.id.toLowerCase() === decodeURIComponent(match[1]).toLowerCase(),
     );
     if (flight) return { kind: 'booking', site, flightId: flight.id };

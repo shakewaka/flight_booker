@@ -1,4 +1,4 @@
-import { quoteFlight, type MarketState, type SiteQuote } from './market';
+import { allFlights, findOffers, quoteFlight, type MarketState, type SiteQuote } from './market';
 import type { Flight, FlightOffers, RoundScenario, SiteId, Yen } from './types';
 
 // 比較サイトの検索。ReactやDOMに依存せず、現在時刻は引数で受け取る。
@@ -8,7 +8,7 @@ export type SearchQuery = {
   originCode: string;
   destinationCode: string;
   departureDate: string;
-  /** 到着日（目的地の現地の日付）。 */
+  /** 到着日（目的地の現地の日付）。この日までに着く便を探す。 */
   arrivalDate: string;
   /** true なら直行便だけを探す。false は経由地の指定なし。 */
   nonstopOnly: boolean;
@@ -46,15 +46,16 @@ export function searchFlights(
 ): SearchResult[] {
   const results: SearchResult[] = [];
 
-  for (const flight of scenario.flights) {
+  for (const flight of allFlights(scenario, market)) {
     if (flight.originCode !== query.originCode) continue;
     if (flight.destinationCode !== query.destinationCode) continue;
     if (flight.departureDate !== query.departureDate) continue;
-    if (flight.arrivalDate !== query.arrivalDate) continue;
+    // 到着日は「この日までに着く」。翌日の日付を入れても、当日に着く便は出す。
+    if (flight.arrivalDate > query.arrivalDate) continue;
     if (query.nonstopOnly && flight.stops > 0) continue;
     if (flight.checkedBaggageKg < query.checkedBaggageKg) continue;
 
-    const offers = scenario.offers.find((offer) => offer.flightId === flight.id);
+    const offers = findOffers(scenario, market, flight.id);
     if (!offers) continue;
     const quotes = quoteFlight(market, flight.id);
     const prices = Object.values(quotes)

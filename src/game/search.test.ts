@@ -120,11 +120,11 @@ describe('searchFlights', () => {
     expect(ids({ ...query, originCode: 'TSA', destinationCode: 'HND' })).toEqual([]);
   });
 
-  it('到着日が便の到着日と違うと、出発日が合っていても出さない', () => {
-    expect(ids({ ...query, arrivalDate: '2027-05-19' })).toEqual([]);
+  it('到着日は「この日までに着く」。翌日を入れても、当日に着く便を出す', () => {
+    expect(ids({ ...query, arrivalDate: '2027-05-19' })).toEqual(ids(query));
   });
 
-  it('翌日に着く便は、到着日に翌日を入れたときだけ出す', () => {
+  it('翌日に着く便は、到着日に翌日以降を入れたときだけ出す', () => {
     const overnight: RoundScenario = {
       ...sampleRound,
       flights: sampleRound.flights.map((flight) =>
@@ -132,7 +132,8 @@ describe('searchFlights', () => {
       ),
     };
     expect(ids(query, overnight)).not.toContain('HND-TSA-1620');
-    expect(ids({ ...query, arrivalDate: '2027-05-19' }, overnight)).toEqual(['HND-TSA-1620']);
+    expect(ids({ ...query, arrivalDate: '2027-05-19' }, overnight)).toContain('HND-TSA-1620');
+    expect(ids({ ...query, arrivalDate: '2027-05-20' }, overnight)).toContain('HND-TSA-1620');
   });
 });
 

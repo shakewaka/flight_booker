@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useReducer, useState } from 'react';
 import type { RoundScenario, SiteId } from '../../game/types';
-import type { MarketStore } from '../marketStore';
+import { findFlight, type MarketState } from '../../game/market';
+import { useMarketSnapshot, type MarketStore } from '../marketStore';
 import { BookingPage } from '../sites/booking/BookingPage';
 import { ComparePage } from '../sites/compare/ComparePage';
 import { SITE_INFO } from '../sites/siteInfo';
@@ -26,10 +27,10 @@ type PageStatus = { title: string; busy: boolean; url: string };
 const COMPARE_PAGE: TabPage = { kind: 'compare' };
 
 /** タブに最初に出す題名。 */
-function pageTitle(page: TabPage, scenario: RoundScenario): string {
+function pageTitle(page: TabPage, scenario: RoundScenario, market: MarketState): string {
   if (page.kind === 'compare') return '航空券比較サイト';
   if (page.kind === 'not-found') return 'ページが見つかりません';
-  const flight = scenario.flights.find((candidate) => candidate.id === page.flightId);
+  const flight = findFlight(scenario, market, page.flightId);
   const route = flight
     ? `${flight.originCode} → ${flight.destinationCode} ${flight.departureTime}`
     : '';
@@ -55,6 +56,7 @@ export function GameBrowser({
 }: GameBrowserProps) {
   const [state, dispatch] = useReducer(tabsReducer, undefined, createInitialTabs);
   const [statuses, setStatuses] = useState<Record<string, PageStatus>>({});
+  const { market } = useMarketSnapshot(store);
 
   // ページから届く、タブに出す題名・検索中かどうか・URL。変わったときだけ更新する。
   const reportStatus = useCallback((tabId: string, title: string, busy: boolean, url: string) => {
@@ -97,12 +99,16 @@ export function GameBrowser({
       delete rest[id];
       return rest;
     });
-    dispatch({ type: 'navigate', id, page: parsePageUrl(input, scenario) });
+    const { market } = store.getSnapshot();
+    const page = parsePageUrl(input, scenario, market.extraFlights);
+    // 検索結果のURLなら、候補が0件にならないよう、先に便を足しておく。
+    if (page.kind === 'compare' && page.query) store.ensureSearchResults(page.query);
+    dispatch({ type: 'navigate', id, page });
   };
 
   const tabs: TabView[] = state.tabs.map((tab) => ({
     id: tab.id,
-    title: statuses[tab.id]?.title ?? pageTitle(tab.page, scenario),
+    title: statuses[tab.id]?.title ?? pageTitle(tab.page, scenario, market),
     busy: statuses[tab.id]?.busy ?? false,
   }));
   const activeTab = state.tabs.find((tab) => tab.id === state.activeId) ?? state.tabs[0];

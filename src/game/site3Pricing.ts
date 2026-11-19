@@ -1,4 +1,4 @@
-import { site3SoldCount, type MarketState } from './market';
+import type { MarketState } from './market';
 import type { Site3Settings } from './settings';
 import type { FlightOffers, Yen } from './types';
 
@@ -54,20 +54,37 @@ export function withSite3Prices(
   settings: Site3Settings,
   roundingStep: Yen,
 ): MarketState {
-  let changed = false;
-  const site3Price = { ...market.site3Price };
-  for (const offer of offers) {
+  // 便が多いので、0.1秒ごとに全便を計算し直さない。
+  // 価格が動きうるのは、閲覧されている便・サイト3で売れた便・前に価格を動かした便だけ。
+  // それ以外の便は、価格が下の価格帯の下限のまま変わらない。
+  const sold: Record<string, number> = {};
+  for (const bought of market.purchases) {
+    if (bought.site === 'site3') sold[bought.flightId] = (sold[bought.flightId] ?? 0) + 1;
+  }
+  const targets = new Set([...Object.keys(viewers), ...Object.keys(sold), ...market.site3Moved]);
+  const fares =
+    Object.keys(market.site3Fares).length > 0
+      ? market.site3Fares
+      : Object.fromEntries(offers.map((offer) => [offer.flightId, offer.site3]));
+
+  let site3Price: Record<string, Yen> | null = null;
+  const moved: string[] = [];
+  for (const id of targets) {
+    const fare = fares[id];
+    if (!fare) continue;
     const price = site3PriceFor(
-      site3Band(offer.site3, site3SoldCount(market, offer.flightId)),
-      viewers[offer.flightId] ?? 0,
+      site3Band(fare, sold[id] ?? 0),
+      viewers[id] ?? 0,
       participantCount,
       settings,
       roundingStep,
     );
-    if (site3Price[offer.flightId] !== price) {
-      site3Price[offer.flightId] = price;
-      changed = true;
+    if (price !== fare.minPrice) moved.push(id);
+    if (market.site3Price[id] !== price) {
+      site3Price ??= { ...market.site3Price };
+      site3Price[id] = price;
     }
   }
-  return changed ? { ...market, site3Price } : market;
+  if (!site3Price) return market;
+  return { ...market, site3Price, site3Moved: moved };
 }

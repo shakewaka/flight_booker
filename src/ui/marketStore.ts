@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { ensureSearchResults } from '../data/generateFlights';
 import type { BookingEntry } from '../game/booking';
 import {
   closeMarket,
@@ -11,6 +12,7 @@ import {
   type Purchase,
 } from '../game/market';
 import { advanceNpcs, createNpc, type NpcState } from '../game/npc';
+import type { SearchQuery } from '../game/search';
 import type { GameSettings } from '../game/settings';
 import type { Site3Viewing } from '../game/site3Pricing';
 import type { Participant, RoundScenario } from '../game/types';
@@ -37,6 +39,11 @@ export type MarketStore = {
     request: Parameters<typeof purchase>[1],
     entry: BookingEntry,
   ) => MarketResult<Purchase>;
+  /**
+   * 検索の候補が0件になるなら、その検索条件に合う便を市場に足す（どう検索しても候補が出るように）。
+   * 検索を始めるときに呼ぶ。
+   */
+  ensureSearchResults: (query: SearchQuery) => void;
   /** 人間がサイト3で開いている便（裏のタブも含む）を知らせる。 */
   setHumanViewing: (participantId: string, flightIds: string[]) => void;
   /** NPCを進め、サイト3の価格を閲覧人数に合わせる。画面の時計に合わせて呼ぶ。 */
@@ -91,6 +98,9 @@ export function createMarketStore(initial: MarketState, options: StoreOptions): 
         update({ ...snapshot, market: result.state, entries: [...snapshot.entries, entry] });
       }
       return result;
+    },
+    ensureSearchResults: (query) => {
+      update({ ...snapshot, market: ensureSearchResults(scenario, snapshot.market, query) });
     },
     setHumanViewing: (participantId, flightIds) => {
       humanViewing = { ...humanViewing, [participantId]: flightIds };

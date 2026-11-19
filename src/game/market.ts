@@ -1,6 +1,6 @@
 import { bookingTimeMs, isBookingOpen, type RoundTimer } from './roundClock';
 import { openSeatsOf } from './seatMap';
-import type { FlightOffers, RoundScenario, SiteId, Yen } from './types';
+import type { Flight, FlightOffers, RoundScenario, SiteId, Yen } from './types';
 
 // 1ラウンドの市場。全予約サイト・全参加者（人間とNPC）が、この処理だけを通して席を確保・購入する。
 // 画面やタブごとに在庫を持たない。状態は書き換えず、操作のたびに新しい状態を返す。
@@ -57,6 +57,14 @@ export type MarketState = {
   site3Price: Record<string, Yen>;
   /** 便ごとのサイト3の販売条件。下の価格帯が売り切れたときに、価格を上げるのに使う。 */
   site3Fares: Record<string, FlightOffers['site3']>;
+  /** サイト3の価格が、下の価格帯の下限から動いている便。価格を計算し直す便を絞るのに使う。 */
+  site3Moved: string[];
+  /**
+   * ラウンドの途中で足した便と販売条件。検索で候補が0件になったとき、その検索条件に合う便を足す
+   * （src/data/generateFlights.ts の ensureSearchResults）。出題の便と同じように確保・購入できる。
+   */
+  extraFlights: Flight[];
+  extraOffers: FlightOffers[];
   holds: Hold[];
   purchases: Purchase[];
   /** 次に作る確保の番号。 */
@@ -106,6 +114,9 @@ export function createMarket(
     // 仮：閲覧人数を数えるまでは、サイト3は下限の価格から始める。
     site3Price: byFlight((offer) => offer.site3.minPrice),
     site3Fares: byFlight((offer) => offer.site3),
+    site3Moved: [],
+    extraFlights: [],
+    extraOffers: [],
     holds: [],
     purchases: [],
     nextHoldNumber: 1,
@@ -370,4 +381,66 @@ export function purchasesUntilClose(market: MarketState): number | null {
 /** ラウンドの終了。残っている確保をすべて解放する。購入済みの席はそのまま残る。 */
 export function closeMarket(market: MarketState): MarketState {
   return market.holds.length === 0 ? market : { ...market, holds: [] };
+}
+
+/** 出題の便と、ラウンドの途中で足した便のすべて。 */
+export function allFlights(scenario: RoundScenario, market: MarketState): Flight[] {
+  return market.extraFlights.length === 0
+    ? scenario.flights
+    : [...scenario.flights, ...market.extraFlights];
+}
+
+/** 便を番号で探す。出題の便になければ、ラウンドの途中で足した便から探す。 */
+export function findFlight(
+  scenario: RoundScenario,
+  market: MarketState,
+  flightId: string,
+): Flight | undefined {
+  return (
+    scenario.flights.find((flight) => flight.id === flightId) ??
+    market.extraFlights.find((flight) => flight.id === flightId)
+  );
+}
+
+/** 便の販売条件を探す。 */
+export function findOffers(
+  scenario: RoundScenario,
+  market: MarketState,
+  flightId: string,
+): FlightOffers | undefined {
+  return (
+    scenario.offers.find((offer) => offer.flightId === flightId) ??
+    market.extraOffers.find((offer) => offer.flightId === flightId)
+  );
+}
+
+/**
+ * ラウンドの途中で便を足す。座席・価格・販売枠を、出題の便と同じ形で市場に入れる。
+ * すでにある番号の便は足さない。
+ */
+export function addFlights(
+  market: MarketState,
+  flights: Flight[],
+  offers: FlightOffers[],
+): MarketState {
+  const fresh = flights.filter((flight) => !(flight.id in market.seats));
+  if (fresh.length === 0) return market;
+  const offerOf = (id: string) => offers.find((offer) => offer.flightId === id);
+  const added = fresh.flatMap((flight) => {
+    const offer = offerOf(flight.id);
+    return offer ? [{ flight, offer }] : [];
+  });
+  const entries = <T>(pick: (item: (typeof added)[number]) => T) =>
+    Object.fromEntries(added.map((item) => [item.flight.id, pick(item)]));
+  return {
+    ...market,
+    seats: { ...market.seats, ...entries(({ flight }) => openSeatsOf(flight)) },
+    site1Quota: { ...market.site1Quota, ...entries(({ offer }) => offer.site1.fareQuota) },
+    site1Price: { ...market.site1Price, ...entries(({ offer }) => offer.site1.price) },
+    site2Price: { ...market.site2Price, ...entries(({ offer }) => offer.site2.price) },
+    site3Price: { ...market.site3Price, ...entries(({ offer }) => offer.site3.minPrice) },
+    site3Fares: { ...market.site3Fares, ...entries(({ offer }) => offer.site3) },
+    extraFlights: [...market.extraFlights, ...added.map(({ flight }) => flight)],
+    extraOffers: [...market.extraOffers, ...added.map(({ offer }) => offer)],
+  };
 }

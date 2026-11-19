@@ -1,6 +1,6 @@
 import type { BookingEntry } from './booking';
 import { judgeBooking, type InputMistake } from './judge';
-import type { MarketState } from './market';
+import { findFlight, type MarketState } from './market';
 import { computePenalty, RANK_TIER, type PenaltyResult } from './penalty';
 import { findBookingViolations, type TripViolation } from './requirements';
 import type { PenaltySettings } from './settings';
@@ -77,10 +77,10 @@ export function computeRoundResults(options: {
       (candidate) =>
         candidate.participantId === participant.id && candidate.procedureId === bought.procedureId,
     );
-    const flight = scenario.flights.find((candidate) => candidate.id === bought.flightId);
+    const flight = findFlight(scenario, market, bought.flightId);
     // 入力内容の記録がない参加者は、入力ミスなしとして扱う。条件違反は便から判定する。
     const judgement = entry
-      ? judgeBooking(entry, scenario, { seatId: bought.seatId, price: bought.price })
+      ? judgeBooking(entry, scenario, { seatId: bought.seatId, price: bought.price, flight })
       : {
           inputMistakes: [],
           tripViolations: flight

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sampleRound } from '../data/sampleRound';
-import { createMarket } from './market';
+import { createMarket, purchase } from './market';
 import { createRoundTimer } from './roundClock';
 import { countSite3Viewers, site3PriceFor, withSite3Prices } from './site3Pricing';
 
@@ -69,5 +69,37 @@ describe('withSite3Prices', () => {
 
   it('価格が変わらなければ、同じ市場をそのまま返す', () => {
     expect(withSite3Prices(market, sampleRound.offers, {}, 10, settings, 500)).toBe(market);
+  });
+
+  it('閲覧していた人がいなくなると、価格は下限に戻る（計算し直す便を絞っても戻し忘れない）', () => {
+    const viewed = withSite3Prices(
+      market,
+      sampleRound.offers,
+      { [flight.flightId]: 5 },
+      10,
+      settings,
+      500,
+    );
+    expect(viewed.site3Moved).toEqual([flight.flightId]);
+    const left = withSite3Prices(viewed, sampleRound.offers, {}, 10, settings, 500);
+    expect(left.site3Price[flight.flightId]).toBe(flight.site3.minPrice);
+    expect(left.site3Moved).toEqual([]);
+  });
+
+  it('サイト3で売れて上の価格帯に上がった便は、閲覧人数が0でも上の価格帯の下限のまま', () => {
+    let sold = market;
+    for (let i = 0; i < flight.site3.fareQuota; i += 1) {
+      const result = purchase(sold, {
+        participantId: `p${i}`,
+        site: 'site3',
+        flightId: flight.flightId,
+        procedureId: `p${i}`,
+        now: timer.startAt,
+      });
+      if (!result.ok) throw new Error(result.reason);
+      sold = result.state;
+    }
+    const next = withSite3Prices(sold, sampleRound.offers, {}, 10, settings, 500);
+    expect(next.site3Price[flight.flightId]).toBe(flight.site3.raised.minPrice);
   });
 });

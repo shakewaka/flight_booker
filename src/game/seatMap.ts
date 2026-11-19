@@ -45,7 +45,9 @@ export function cabinSeats(): string[] {
 
 /** 便の番号と目的から決まる順に並べ替える。 */
 function shuffled(seats: string[], key: string): string[] {
-  return [...seats].sort((a, b) => unitFromString(`${key}|${a}`) - unitFromString(`${key}|${b}`));
+  // 並べ替えの比較のたびに計算し直さないよう、席ごとの数を先に1回だけ求める。
+  const order = new Map(seats.map((seat) => [seat, unitFromString(`${key}|${seat}`)]));
+  return [...seats].sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
 }
 
 /**
