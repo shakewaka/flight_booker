@@ -2,6 +2,7 @@ import { distanceKm } from '../game/airports';
 import { createFlightOffers, highestPrice } from '../game/pricing';
 import { findTripViolations } from '../game/requirements';
 import { prototypeSettings } from '../game/settings';
+import { generateRoundFlights } from './generateFlights';
 import type {
   Airline,
   Airport,
@@ -121,7 +122,8 @@ export function flight(
     seller: string;
     operator?: string;
     terminal: number;
-    stops?: number;
+    /** 乗継の空港。省略すると直行便。 */
+    via?: string[];
     baggageKg: number;
     seats: number;
   },
@@ -137,8 +139,38 @@ export function flight(
     arrivalDate: route.arrivalDate ?? route.date,
     arrivalTime: times.arr,
     arrivalTerminal: details.terminal,
-    stops: details.stops ?? 0,
+    stops: details.via?.length ?? 0,
+    ...(details.via ? { via: details.via } : {}),
     checkedBaggageKg: details.baggageKg,
     seats: details.seats,
+  };
+}
+
+/**
+ * 手で書いた出題に、自動生成の便を足す（src/data/generateFlights.ts）。
+ * 正しい区間・日付の候補を増やし、検索条件を間違えても候補が出るようにする。
+ * 空港の一覧は、全ラウンド共通の一覧にそろえる。ラウンド最高値は、足した便も含めて決め直す。
+ */
+export function withGeneratedFlights(
+  scenario: RoundScenario,
+  counts: { correct: number; other: number } = { correct: 8, other: 3 },
+): RoundScenario {
+  const generated = generateRoundFlights({
+    seed: scenario.id,
+    requirements: scenario.requirements,
+    airports: AIRPORTS,
+    airlineIds: AIRLINES.map((airline) => airline.id),
+    existingIds: scenario.flights.map((f) => f.id),
+    correctCount: counts.correct,
+    otherCount: counts.other,
+  });
+  const flights = [...scenario.flights, ...generated.flights];
+  const offers = [...scenario.offers, ...generated.offers];
+  return {
+    ...scenario,
+    airports: AIRPORTS,
+    flights,
+    offers,
+    maxPrice: validMaxPrice(flights, offers, scenario.requirements),
   };
 }

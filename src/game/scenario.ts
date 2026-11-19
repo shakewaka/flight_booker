@@ -26,6 +26,13 @@ export function findScenarioProblems(scenario: RoundScenario, participantCount: 
     if (!airlineIds.has(flight.sellingAirlineId) || !airlineIds.has(flight.operatingAirlineId)) {
       problems.push(`便 ${flight.id}：航空会社の一覧にない会社を使っている`);
     }
+    const via = flight.via ?? [];
+    if (via.length !== flight.stops) {
+      problems.push(`便 ${flight.id}：乗継の回数と乗継の空港の数が合わない`);
+    }
+    if (via.some((code) => !airportCodes.has(code))) {
+      problems.push(`便 ${flight.id}：乗継の空港が空港の一覧にない`);
+    }
     if (flight.seats < 1) {
       problems.push(`便 ${flight.id}：座席がない`);
     }

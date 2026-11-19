@@ -1,5 +1,5 @@
 import type { RoundScenario } from '../game/types';
-import { buildRound, flight } from './buildRound';
+import { buildRound, flight, withGeneratedFlights } from './buildRound';
 import { sampleRound } from './sampleRound';
 
 // 1試合4ラウンドの出題データ。企画書「13 4ラウンドの構成例」に沿って、ラウンドごとに人物・路線・条件を変える。
@@ -146,12 +146,12 @@ const round3 = buildRound({
       { dep: '11:10', arr: '15:05' },
       { seller: 'D', operator: 'A', terminal: 1, baggageKg: 20, seats: 8 },
     ),
-    // 条件を満たす。乗継1回で、到着は期限の5分前。サイト1の販売枠は1枚。窓側は7席。
+    // 条件を満たす。台北（桃園）で乗継1回で、到着は期限の5分前。サイト1の販売枠は1枚。窓側は7席。
     flight(
       'NRT-HKG-1230',
       { from: 'NRT', to: 'HKG', date: '2027-07-15' },
       { dep: '12:30', arr: '17:55' },
-      { seller: 'B', terminal: 1, stops: 1, baggageKg: 20, seats: 21 },
+      { seller: 'B', terminal: 1, via: ['TPE'], baggageKg: 20, seats: 21 },
     ),
     // 18:00より後に着く。
     flight(
@@ -265,4 +265,7 @@ const round4 = buildRound({
 });
 
 /** 1試合で使う4ラウンド。ラウンド1は、企画書のラウンド例をもとにした出題。 */
-export const matchRounds: RoundScenario[] = [sampleRound, round2, round3, round4];
+/** 試合で使う4ラウンド。手で書いた便に、自動生成の便を足す。 */
+export const matchRounds: RoundScenario[] = [sampleRound, round2, round3, round4].map((round) =>
+  withGeneratedFlights(round),
+);

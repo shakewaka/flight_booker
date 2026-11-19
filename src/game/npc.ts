@@ -5,6 +5,7 @@ import {
   placeHold,
   purchase,
   purchaseOf,
+  quoteFlight,
   site3SoldCount,
   type MarketState,
 } from './market';
@@ -197,7 +198,7 @@ type Candidate = { flightId: string; site: SiteId; seatId: string | undefined };
 
 /**
  * 次に試す「便とサイト」と席。まだ試していない組み合わせから、型の順番で選ぶ。
- * 座席表で条件に合う席が空いていない便は、選ばない（座席表は人間にも見えている）。
+ * 座席表で条件に合う席が空いていない便や、検索結果で売り切れと出ている便は、選ばない（人間にも見えている）。
  */
 function nextCandidate(
   npc: NpcState,
@@ -208,6 +209,8 @@ function nextCandidate(
   for (const site of sites) {
     for (const flightId of validFlightsBy(npc, scenario, market, site)) {
       if (npc.tried.includes(keyOf(flightId, site))) continue;
+      // 検索結果で売り切れ・満席と出ている組み合わせは選ばない（人間も検索し直せば見える）。
+      if (!quoteFlight(market, flightId)[site].available) continue;
       const seatId = pickSeat(npc, market, flightId, scenario);
       if (seatId !== null) return { flightId, site, seatId };
     }

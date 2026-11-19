@@ -11,7 +11,7 @@ import { formatJapaneseDate } from '../../../game/dates';
 import { freeSeats, site3FareRaised, type MarketRefusal } from '../../../game/market';
 import { SEAT_POSITION_LABEL, seatPosition } from '../../../game/seatMap';
 import type { RoundScenario, SiteId } from '../../../game/types';
-import { formatYen } from '../../format';
+import { formatStops, formatYen } from '../../format';
 import { useMarketSnapshot, type MarketStore } from '../../marketStore';
 import { SITE_INFO } from '../siteInfo';
 import { enterToNext } from '../../enterToNext';
@@ -246,8 +246,8 @@ export function BookingPage({
           <p className="booking__meta">
             {formatJapaneseDate(flight.departureDate)}発 ／ {airlineOf(flight.sellingAirlineId)}
             （運航：
-            {airlineOf(flight.operatingAirlineId)}）／{' '}
-            {flight.stops === 0 ? '直行便' : `乗継${flight.stops}回`} ／ 所要
+            {airlineOf(flight.operatingAirlineId)}）／ {formatStops(flight, scenario.airports)} ／
+            所要
             {Math.floor(duration / 60)}時間{duration % 60}分 ／ 到着ターミナル
             {flight.arrivalTerminal} ／ 受託手荷物{flight.checkedBaggageKg}kg込み
           </p>

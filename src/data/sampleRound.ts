@@ -95,6 +95,7 @@ const flights: Flight[] = [
     arrivalTime: '14:10',
     arrivalTerminal: 2,
     stops: 1,
+    via: ['GMP'],
     checkedBaggageKg: 20,
     seats: 8,
   },

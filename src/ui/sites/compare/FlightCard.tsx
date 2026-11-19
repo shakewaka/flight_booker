@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { airportName, flightDurationMinutes } from '../../../game/airports';
 import type { SearchResult } from '../../../game/search';
 import type { RoundScenario, SiteId } from '../../../game/types';
-import { formatYen } from '../../format';
+import { formatStops, formatYen } from '../../format';
 import { SITE_IDS, SITE_INFO } from '../siteInfo';
 
 type FlightCardProps = {
@@ -42,8 +42,8 @@ export function FlightCard({ result, scenario, onBook }: FlightCardProps) {
           <span className="flight-card__local">現地時間</span>
         </p>
         <p className="flight-card__summary">
-          {airlineOf(flight.sellingAirlineId)} ／{' '}
-          {flight.stops === 0 ? '直行便' : `乗継${flight.stops}回`} ／ 受託手荷物
+          {airlineOf(flight.sellingAirlineId)} ／ {formatStops(flight, scenario.airports)} ／
+          受託手荷物
           {flight.checkedBaggageKg > 0 ? `${flight.checkedBaggageKg}kg込み` : 'なし'}
         </p>
         <dl className="flight-card__details">

@@ -101,6 +101,8 @@ export type Flight = {
   arrivalTerminal: number;
   /** 乗継の回数。0は直行便。 */
   stops: number;
+  /** 乗継の空港（順番どおり）。直行便は省略する。 */
+  via?: string[];
   /** 料金に含まれる受託手荷物の重さ。 */
   checkedBaggageKg: number;
   /** 物理的な座席数。全予約サイトで共有する。 */
