@@ -249,6 +249,16 @@
   color: #ff8a8a;
 }
 
+.browser__progress {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 締切まであと少しの人数になったら、目立たせる。 */
+.browser__progress--warning {
+  color: #ffb36b;
+  font-weight: 700;
+}
+
 .browser__page {
   position: relative;
   flex: 1;

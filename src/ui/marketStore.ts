@@ -31,6 +31,8 @@ export type MarketSnapshot = {
 };
 
 export type MarketStore = {
+  /** このラウンドの参加者全員（人間とNPC）。他の参加者の名前を出すのに使う。 */
+  participants: Participant[];
   getSnapshot: () => MarketSnapshot;
   subscribe: (listener: () => void) => () => void;
   placeHold: (request: Parameters<typeof placeHold>[1]) => MarketResult<Hold>;
@@ -77,6 +79,7 @@ export function createMarketStore(initial: MarketState, options: StoreOptions): 
   };
 
   return {
+    participants,
     getSnapshot: () => snapshot,
     subscribe: (listener) => {
       listeners.add(listener);

@@ -14,6 +14,7 @@ import { MemoPad } from '../documents/MemoPad';
 import { useMarketSnapshot, type MarketStore } from '../marketStore';
 import { BookedOverlay } from './BookedOverlay';
 import { RoundOverlay } from './RoundOverlay';
+import { RivalFeed } from './RivalFeed';
 import { RoundResults } from './RoundResults';
 import { Standings } from './Standings';
 import './workspace.css';
@@ -154,6 +155,14 @@ export function Workspace({
           onToggle={toggleDocument}
         />
       </aside>
+      {phase.kind === 'playing' && (
+        <RivalFeed
+          market={market}
+          participants={participants}
+          participantId={participantId}
+          now={now}
+        />
+      )}
       {bought && phase.kind === 'playing' && (
         <BookedOverlay
           scenario={scenario}
