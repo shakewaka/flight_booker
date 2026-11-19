@@ -305,6 +305,34 @@ describe('NPCの席選び', () => {
   });
 });
 
+describe('NPCと予算', () => {
+  // 09:10発はサイト1 31,000円・サイト2 41,000円・サイト3 32,500円〜。予算を35,000円にする。
+  const budgetRound = {
+    ...sampleRound,
+    requirements: { ...sampleRound.requirements, maxBudget: 35_000 },
+  };
+  const run = (overlooked: NpcState['overlooked']) => {
+    let market = createMarket(budgetRound, timer);
+    // サイト2を好むNPC。
+    let npc: NpcState = { ...createNpc('npc-b', 1, market, budgetRound, settings), overlooked };
+    for (let now = 0; now <= DEADLINE; now += TICK) {
+      ({ npc, market } = stepNpc(npc, market, { scenario: budgetRound, settings, now }));
+    }
+    return market.purchases[0];
+  };
+
+  it('予算を超えるサイトでは買わず、予算内のサイトで買う', () => {
+    const bought = run(null);
+    expect(bought.site).not.toBe('site2');
+    expect(bought.price).toBeLessThanOrEqual(35_000);
+  });
+
+  it('予算を見落としたNPCは、好みのサイトで予算を超えて買う', () => {
+    const bought = run('budget');
+    expect(bought.site).toBe('site2');
+    expect(bought.price).toBeGreaterThan(35_000);
+  });
+});
 describe('NPCの見落としと打ち間違え', () => {
   it('条件を1つ見落としたNPCは、その条件だけを満たさない、より安い便を買うことがある', () => {
     const market = freshMarket();

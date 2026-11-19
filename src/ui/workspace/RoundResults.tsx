@@ -47,6 +47,10 @@ const VIOLATION_LABEL: Record<TripViolation, string> = {
   operatingAirline: '運航が不可の航空会社',
   arrivalTerminal: '到着ターミナルが条件と違う',
   seat: '座席の位置が条件と違う',
+  stops: '直行便ではない',
+  via: '乗継の空港が条件と違う',
+  duration: '所要時間が上限を超過',
+  budget: '支払った金額が予算を超過',
 };
 
 /** 予約タイムを表示する。計測はミリ秒、表示は小数第2位まで。 */

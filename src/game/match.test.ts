@@ -142,9 +142,14 @@ describe('4ラウンドでのNPC', () => {
       for (const bought of market.purchases) {
         const flight = scenario.flights.find((f) => f.id === bought.flightId);
         const npc = npcs.find((candidate) => candidate.id === bought.participantId);
-        // 席の条件も含めて、見落とした条件以外は満たしている。
+        // 席と予算の条件も含めて、見落とした条件以外は満たしている。
         const violations = flight
-          ? findBookingViolations(flight, bought.seatId, scenario.requirements)
+          ? findBookingViolations(
+              flight,
+              { seatId: bought.seatId, price: bought.price },
+              scenario.requirements,
+              scenario.airports,
+            )
           : ['?'];
         expect(violations.every((v) => v === npc?.overlooked)).toBe(true);
       }

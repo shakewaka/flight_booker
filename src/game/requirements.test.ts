@@ -5,6 +5,7 @@ import {
   findTripViolations,
   seatMeetsRequirements,
 } from './requirements';
+import { sampleRound } from '../data/sampleRound';
 import type { Flight, TripRequirements } from './types';
 
 const requirements: TripRequirements = {
@@ -34,6 +35,68 @@ const validFlight: Flight = {
   seats: 6,
 };
 
+describe('乗継・所要時間・予算の条件', () => {
+  const { airports } = sampleRound;
+  // 08:10発 12:30着（時差1時間）なので、所要時間は5時間20分。
+  const connecting: Flight = { ...validFlight, stops: 1, via: ['GMP'] };
+
+  it('直行便のみの条件では、乗継便は違反になる', () => {
+    const nonstop = { ...requirements, nonstopOnly: true };
+    expect(findTripViolations(validFlight, nonstop)).toEqual([]);
+    expect(findTripViolations(connecting, nonstop)).toEqual(['stops']);
+  });
+
+  it('乗継の空港の条件では、ほかの空港での乗継は違反、直行便と指定の空港での乗継はよい', () => {
+    const viaGmp = { ...requirements, allowedViaCodes: ['GMP'] };
+    const viaHkg = { ...requirements, allowedViaCodes: ['HKG'] };
+    expect(findTripViolations(validFlight, viaHkg)).toEqual([]);
+    expect(findTripViolations(connecting, viaGmp)).toEqual([]);
+    expect(findTripViolations(connecting, viaHkg)).toEqual(['via']);
+  });
+
+  it('所要時間の上限ちょうどは条件を満たし、1分でも超えると違反になる', () => {
+    expect(
+      findTripViolations(validFlight, { ...requirements, maxDurationMinutes: 320 }, airports),
+    ).toEqual([]);
+    expect(
+      findTripViolations(validFlight, { ...requirements, maxDurationMinutes: 319 }, airports),
+    ).toEqual(['duration']);
+  });
+
+  it('所要時間の条件があるのに空港の一覧を渡さないと、エラーにする（判定を飛ばさない）', () => {
+    expect(() =>
+      findTripViolations(validFlight, { ...requirements, maxDurationMinutes: 300 }),
+    ).toThrow();
+  });
+
+  it('予算ちょうどは条件を満たし、1円でも超えると違反になる。金額が分からなければ調べない', () => {
+    const budget = { ...requirements, maxBudget: 30_000 };
+    expect(findBookingViolations(validFlight, { price: 30_000 }, budget)).toEqual([]);
+    expect(findBookingViolations(validFlight, { price: 30_001 }, budget)).toEqual(['budget']);
+    expect(findBookingViolations(validFlight, {}, budget)).toEqual([]);
+  });
+
+  it('条件メモに、予算・直行便・乗継の空港・所要時間を書く', () => {
+    const memo = describeRequirements(
+      {
+        ...requirements,
+        maxBudget: 28_000,
+        nonstopOnly: true,
+        allowedViaCodes: ['GMP'],
+        maxDurationMinutes: 330,
+      },
+      airports,
+      [],
+    );
+    expect(memo.conditions.slice(0, 4)).toEqual([
+      '予算は¥28,000まで',
+      '直行便のみ',
+      '乗継はソウル（金浦）経由のみ',
+      '所要時間は5時間30分以内',
+    ]);
+  });
+});
+
 describe('席の条件', () => {
   const withSeat = (seatPositions: TripRequirements['seatPositions']) => ({
     ...requirements,
@@ -52,13 +115,12 @@ describe('席の条件', () => {
 
   it('便の違反に、席の違反を足す。席が分からなければ、便だけで判定する', () => {
     const aisle = withSeat(['aisle']);
-    expect(findBookingViolations(validFlight, '22C', aisle)).toEqual([]);
-    expect(findBookingViolations(validFlight, '22A', aisle)).toEqual(['seat']);
-    expect(findBookingViolations(validFlight, undefined, aisle)).toEqual([]);
-    expect(findBookingViolations({ ...validFlight, arrivalTerminal: 2 }, '22A', aisle)).toEqual([
-      'arrivalTerminal',
-      'seat',
-    ]);
+    expect(findBookingViolations(validFlight, { seatId: '22C' }, aisle)).toEqual([]);
+    expect(findBookingViolations(validFlight, { seatId: '22A' }, aisle)).toEqual(['seat']);
+    expect(findBookingViolations(validFlight, {}, aisle)).toEqual([]);
+    expect(
+      findBookingViolations({ ...validFlight, arrivalTerminal: 2 }, { seatId: '22A' }, aisle),
+    ).toEqual(['arrivalTerminal', 'seat']);
   });
 
   it('便の判定（findTripViolations）では、席の条件を調べない', () => {

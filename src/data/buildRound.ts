@@ -74,14 +74,20 @@ export const AIRLINES: Airline[] = [
 /** 便ごとの価格の決め方。fareLevel は便ごとの高い・安いを表す倍率、fareQuota はサイト1の販売枠。 */
 export type FareDefinition = { flightId: string; fareLevel: number; fareQuota: number };
 
-/** 条件を満たす便の価格のうち、最も高い金額（ラウンド最高値）。 */
+/**
+ * 条件を満たす便の価格のうち、最も高い金額（ラウンド最高値）。
+ * 予算の条件は便では決まらないので、ここでは見ない（予算を超える予約は条件違反として最高値で集計する）。
+ */
 export function validMaxPrice(
   flights: Flight[],
   offers: FlightOffers[],
   requirements: TripRequirements,
+  airports: Airport[] = AIRPORTS,
 ): number {
   const valid = new Set(
-    flights.filter((f) => findTripViolations(f, requirements).length === 0).map((f) => f.id),
+    flights
+      .filter((f) => findTripViolations(f, requirements, airports).length === 0)
+      .map((f) => f.id),
   );
   return highestPrice(offers.filter((offer) => valid.has(offer.flightId)));
 }

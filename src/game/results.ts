@@ -80,11 +80,16 @@ export function computeRoundResults(options: {
     const flight = scenario.flights.find((candidate) => candidate.id === bought.flightId);
     // 入力内容の記録がない参加者は、入力ミスなしとして扱う。条件違反は便から判定する。
     const judgement = entry
-      ? judgeBooking(entry, scenario, bought.seatId)
+      ? judgeBooking(entry, scenario, { seatId: bought.seatId, price: bought.price })
       : {
           inputMistakes: [],
           tripViolations: flight
-            ? findBookingViolations(flight, bought.seatId, scenario.requirements)
+            ? findBookingViolations(
+                flight,
+                { seatId: bought.seatId, price: bought.price },
+                scenario.requirements,
+                scenario.airports,
+              )
             : [],
         };
     const penalty = computePenalty(judgement, scenario.maxPrice, penaltySettings);

@@ -73,7 +73,9 @@ describe('generateRouteFlights', () => {
       requirements,
       count: 12,
     });
-    const violations = flights.map(({ flight }) => findTripViolations(flight, requirements));
+    const violations = flights.map(({ flight }) =>
+      findTripViolations(flight, requirements, AIRPORTS),
+    );
     expect(violations.filter((v) => v.length === 0).length).toBeGreaterThanOrEqual(4);
     // 条件を1つ外す便は、狙った条件を外している（出発時刻を早めた乗継便は、到着も外れることがある）。
     expect(violations.every((v) => v.length <= 2)).toBe(true);
@@ -104,7 +106,8 @@ describe('試合のラウンドの便', () => {
       const requirements = matchRounds[index].requirements;
       expect(results.length).toBeGreaterThanOrEqual(10);
       expect(
-        results.filter((r) => findTripViolations(r.flight, requirements).length === 0).length,
+        results.filter((r) => findTripViolations(r.flight, requirements, AIRPORTS).length === 0)
+          .length,
       ).toBeGreaterThanOrEqual(3);
     },
   );

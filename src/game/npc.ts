@@ -10,7 +10,12 @@ import {
   type MarketState,
 } from './market';
 import { pickInRange, unitFromString } from './random';
-import { findTripViolations, seatMeetsRequirements, type TripViolation } from './requirements';
+import {
+  findTripViolations,
+  priceMeetsBudget,
+  seatMeetsRequirements,
+  type TripViolation,
+} from './requirements';
 import { searchDurationMs } from './search';
 import { countSite3Viewers, site3Band, withSite3Prices, type Site3Viewing } from './site3Pricing';
 import type { GameSettings } from './settings';
@@ -134,7 +139,22 @@ const OVERLOOKABLE: TripViolation[] = [
   'arrivalTerminal',
   'checkedBaggage',
   'seat',
+  'stops',
+  'via',
+  'duration',
+  'budget',
 ];
+
+/** 手続き中の便の、今の価格。サイト2で確保していれば、確保した価格。 */
+function currentPrice(market: MarketState, npc: NpcState, target: NpcTarget): number {
+  if (target.site === 'site1') return market.site1Price[target.flightId];
+  if (target.site === 'site3') return market.site3Price[target.flightId];
+  const hold = market.holds.find(
+    (candidate) =>
+      candidate.participantId === npc.id && candidate.procedureId === target.procedureId,
+  );
+  return hold?.price ?? market.site2Price[target.flightId];
+}
 
 /**
  * NPCが選ぶ席。席の条件がなければ、おまかせ（undefined）。
@@ -188,7 +208,9 @@ function validFlightsBy(
         : market.site3Price[flightId];
   return scenario.flights
     .filter((flight) =>
-      findTripViolations(flight, scenario.requirements).every((v) => v === npc.overlooked),
+      findTripViolations(flight, scenario.requirements, scenario.airports).every(
+        (v) => v === npc.overlooked,
+      ),
     )
     .map((flight) => flight.id)
     .sort((a, b) => priceOf(a) - priceOf(b));
@@ -210,7 +232,12 @@ function nextCandidate(
     for (const flightId of validFlightsBy(npc, scenario, market, site)) {
       if (npc.tried.includes(keyOf(flightId, site))) continue;
       // 検索結果で売り切れ・満席と出ている組み合わせは選ばない（人間も検索し直せば見える）。
-      if (!quoteFlight(market, flightId)[site].available) continue;
+      const quote = quoteFlight(market, flightId)[site];
+      if (!quote.available) continue;
+      // 予算の条件があれば、今の価格が予算を超える組み合わせは選ばない（予算を見落としたNPCは選ぶ）。
+      if (npc.overlooked !== 'budget' && !priceMeetsBudget(quote.price, scenario.requirements)) {
+        continue;
+      }
       const seatId = pickSeat(npc, market, flightId, scenario);
       if (seatId !== null) return { flightId, site, seatId };
     }
@@ -367,6 +394,18 @@ export function stepNpc(
     !site3PriceIsGood(market, ctx, target.flightId)
   ) {
     return { npc: { ...npc, readyAt: ctx.now + ctx.settings.npc.priceCheckMs }, market };
+  }
+
+  // 確定する前に、今の価格が予算に収まっているかを見る（予算を見落としたNPCは見ない）。
+  // サイト3は、値下がりを待つNPCなら待ち、それ以外は別の候補を探す。
+  if (
+    npc.overlooked !== 'budget' &&
+    !priceMeetsBudget(currentPrice(market, npc, target), ctx.scenario.requirements)
+  ) {
+    if (npc.kind === 'watcher' && target.site === 'site3') {
+      return { npc: { ...npc, readyAt: ctx.now + ctx.settings.npc.priceCheckMs }, market };
+    }
+    return { npc: recover(npc, ctx), market };
   }
 
   const bought = purchase(market, {

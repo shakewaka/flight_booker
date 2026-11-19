@@ -69,7 +69,7 @@ export function findScenarioProblems(scenario: RoundScenario, participantCount: 
     }
     // ラウンド最高値は、条件を満たす便のどの価格よりも低くならない。
     if (
-      findTripViolations(flight, scenario.requirements).length === 0 &&
+      findTripViolations(flight, scenario.requirements, scenario.airports).length === 0 &&
       Math.max(site1.price, site2.price, site3.raised.maxPrice) > scenario.maxPrice
     ) {
       problems.push(`便 ${flight.id}：ラウンド最高値を超える価格がある`);
@@ -78,11 +78,38 @@ export function findScenarioProblems(scenario: RoundScenario, participantCount: 
 
   // 条件を満たす便の、条件を満たす席は、全員が購入できる数を用意する。
   const validSeats = scenario.flights
-    .filter((flight) => findTripViolations(flight, scenario.requirements).length === 0)
+    .filter(
+      (flight) => findTripViolations(flight, scenario.requirements, scenario.airports).length === 0,
+    )
     .flatMap((flight) => openSeatsOf(flight))
     .filter((seat) => seatMeetsRequirements(seat, scenario.requirements)).length;
   if (validSeats < participantCount) {
     problems.push(`条件を満たす便の座席が${validSeats}席で、参加者${participantCount}人に足りない`);
+  }
+
+  // 予算の条件があれば、条件を満たす便を予算内で買える数も、全員分を用意する。
+  // サイト1・3の安い価格は販売枠の数まで、サイト2は座席数まで買える。1便では座席数を超えない。
+  const budget = scenario.requirements.maxBudget;
+  if (budget !== undefined) {
+    const affordable = scenario.flights
+      .filter(
+        (flight) =>
+          findTripViolations(flight, scenario.requirements, scenario.airports).length === 0,
+      )
+      .reduce((total, flight) => {
+        const offer = scenario.offers.find((candidate) => candidate.flightId === flight.id);
+        if (!offer) return total;
+        const count =
+          (offer.site1.price <= budget ? offer.site1.fareQuota : 0) +
+          (offer.site2.price <= budget ? flight.seats : 0) +
+          (offer.site3.minPrice <= budget ? offer.site3.fareQuota : 0);
+        return total + Math.min(flight.seats, count);
+      }, 0);
+    if (affordable < participantCount) {
+      problems.push(
+        `条件を満たす便を予算内で買える数が${affordable}枚で、参加者${participantCount}人に足りない`,
+      );
+    }
   }
 
   return problems;

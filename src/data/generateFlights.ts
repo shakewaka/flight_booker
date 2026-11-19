@@ -73,33 +73,53 @@ function hubsFor(airports: Airport[], from: string, to: string): string[] {
 /** 便の形（出発時刻と所要時間を決める前の、直行か乗継か）。 */
 type Shape = { via: string[]; durationMinutes: number; fareLevel: number };
 
-/** 直行便か乗継便かを決め、所要時間と価格の倍率を決める。 */
+/** 便の形の決め方。条件メモに合わせるときに、乗継の有無・乗継の空港・所要時間を絞る。 */
+type ShapeRule = {
+  connecting: boolean;
+  /** 乗継に使ってよい空港。 */
+  hubs: string[];
+  /** 所要時間の上限・下限（分）。 */
+  maxDuration?: number;
+  minDuration?: number;
+};
+
+/** 直行便か乗継便かを決め、所要時間と価格の倍率を決める。決まりに合う形が作れなければ null。 */
 function chooseShape(
   airports: Airport[],
   from: string,
   to: string,
   random: (label: string) => number,
-  connecting: boolean,
-): Shape {
-  const hubs = hubsFor(airports, from, to);
-  if (connecting && hubs.length > 0) {
-    const hub = hubs[Math.floor(random('hub') * hubs.length)];
-    const layover = round5(60 + random('layover') * 180);
-    return {
+  rule: ShapeRule,
+): Shape | null {
+  let shape: Shape;
+  if (rule.connecting) {
+    if (rule.hubs.length === 0) return null;
+    const hub = rule.hubs[Math.floor(random('hub') * rule.hubs.length)];
+    const legs = legMinutes(airports, from, hub) + legMinutes(airports, hub, to);
+    // 所要時間の下限があれば、待ち時間を延ばして下限を超えるようにする。
+    const layover = round5(
+      rule.minDuration !== undefined
+        ? Math.max(60, rule.minDuration - legs + random('layover') * 60)
+        : 60 + random('layover') * 180,
+    );
+    shape = {
       via: [hub],
-      durationMinutes: legMinutes(airports, from, hub) + layover + legMinutes(airports, hub, to),
+      durationMinutes: legs + layover,
       // 乗継便は安い。待ち時間が長いほど、さらに安い。
-      fareLevel: 0.92 - (layover / 240) * 0.18 - random('level') * 0.08,
+      fareLevel: 0.92 - (Math.min(layover, 240) / 240) * 0.18 - random('level') * 0.08,
+    };
+  } else {
+    shape = {
+      via: [],
+      durationMinutes: legMinutes(airports, from, to) + round5(random('extra') * 20),
+      // 直行便は高い。
+      fareLevel: 1.08 + random('level') * 0.3,
     };
   }
-  return {
-    via: [],
-    durationMinutes: legMinutes(airports, from, to) + round5(random('extra') * 20),
-    // 直行便は高い。
-    fareLevel: 1.08 + random('level') * 0.3,
-  };
+  if (rule.maxDuration !== undefined && shape.durationMinutes > rule.maxDuration) return null;
+  if (rule.minDuration !== undefined && shape.durationMinutes <= rule.minDuration) return null;
+  return shape;
 }
-
 /** 出発の日時（出発地の現地時間）と所要時間から、到着の日時（目的地の現地時間）を求める。 */
 function arrivalOf(
   airports: Airport[],
@@ -140,6 +160,9 @@ function breakableConditions(requirements: TripRequirements): TripViolation[] {
   if (requirements.checkedBaggageKg > 0) conditions.push('checkedBaggage');
   if (requirements.excludedOperatingAirlineIds.length > 0) conditions.push('operatingAirline');
   if (requirements.arrivalTerminal !== undefined) conditions.push('arrivalTerminal');
+  if (requirements.nonstopOnly) conditions.push('stops');
+  if (requirements.allowedViaCodes !== undefined) conditions.push('via');
+  if (requirements.maxDurationMinutes !== undefined) conditions.push('duration');
   return conditions;
 }
 
@@ -162,7 +185,33 @@ export function generateRouteFlights(options: RouteOptions): GeneratedFlight[] {
       requirements && i % 2 === 1 && breakable.length > 0 ? pick('broken', breakable) : null;
     const constrained = requirements !== undefined;
 
-    let shape = chooseShape(airports, from, to, random, random('kind') < 0.45);
+    // 乗継の有無・乗継の空港・所要時間。条件を満たす便は条件に収め、わなの便は狙った条件だけを外す。
+    const allHubs = hubsFor(airports, from, to);
+    const allowedVia = constrained ? requirements.allowedViaCodes : undefined;
+    const hubs =
+      allowedVia === undefined
+        ? allHubs
+        : broken === 'via'
+          ? allHubs.filter((hub) => !allowedVia.includes(hub))
+          : allHubs.filter((hub) => allowedVia.includes(hub));
+    const nonstopOnly = constrained && requirements.nonstopOnly === true && broken !== 'stops';
+    const maxDuration = constrained ? requirements.maxDurationMinutes : undefined;
+    const rule: ShapeRule = {
+      connecting:
+        broken === 'stops' ||
+        broken === 'via' ||
+        broken === 'duration' ||
+        (!nonstopOnly && random('kind') < 0.45),
+      hubs,
+      maxDuration: broken === 'duration' ? undefined : maxDuration,
+      minDuration: broken === 'duration' ? maxDuration : undefined,
+    };
+    let shape = chooseShape(airports, from, to, random, rule);
+    // 条件を満たす便で乗継便が作れなければ、直行便にする。
+    if (!shape && rule.connecting && broken === null) {
+      shape = chooseShape(airports, from, to, random, { ...rule, connecting: false });
+    }
+    if (!shape) continue;
 
     // 出発してよい時間帯（出発地の現地時間）。条件を満たす便は、出発と到着の条件に収める。
     const after =
@@ -174,10 +223,13 @@ export function generateRouteFlights(options: RouteOptions): GeneratedFlight[] {
         ? toMinutes(requirements.arriveBy) - offset
         : null;
     let latest = latestArrival === null ? LAST_DEPARTURE : latestArrival - shape.durationMinutes;
-    if (latest < after && shape.via.length > 0) {
+    if (latest < after && shape.via.length > 0 && broken === null) {
       // 乗継便では間に合わないなら、直行便にする。
-      shape = chooseShape(airports, from, to, random, false);
-      latest = latestArrival === null ? LAST_DEPARTURE : latestArrival - shape.durationMinutes;
+      const direct = chooseShape(airports, from, to, random, { ...rule, connecting: false });
+      if (direct) {
+        shape = direct;
+        latest = latestArrival === null ? LAST_DEPARTURE : latestArrival - shape.durationMinutes;
+      }
     }
     if (latest < after) continue;
 
@@ -236,8 +288,17 @@ export function generateRouteFlights(options: RouteOptions): GeneratedFlight[] {
       ? 8 + Math.floor(random('seats') * 7)
       : 4 + Math.floor(random('seats') * 5);
     // わなの便は安くして、選びたくなるようにする。手荷物なしの便も安い。
-    const fareLevel =
+    let fareLevel =
       Math.round(shape.fareLevel * (broken ? 0.9 : 1) * (baggageKg === 0 ? 0.88 : 1) * 100) / 100;
+    // 予算の条件があれば、条件を満たす便は、サイト1なら予算に収まる価格にする（サイト2・3は超えることがある）。
+    if (constrained && broken === null && requirements.maxBudget !== undefined) {
+      const { baseFare, farePerKm } = prototypeSettings.pricing;
+      const standard = baseFare + distanceKm(airports, from, to) * farePerKm;
+      fareLevel = Math.min(
+        fareLevel,
+        Math.floor((requirements.maxBudget / standard) * 0.97 * 100) / 100,
+      );
+    }
 
     let id = `${from}-${to}-${date.slice(5).replace('-', '')}-${clock(departure).replace(':', '')}`;
     while (usedIds.has(id)) id += 'X';

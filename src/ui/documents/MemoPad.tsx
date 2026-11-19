@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { TripMemo } from '../../game/types';
 import './memo.css';
 
@@ -7,11 +8,21 @@ type MemoPadProps = {
   concealed: boolean;
 };
 
-/** 右上の条件メモ。机に置いた、罫線入りのメモ帳。 */
+/** メモに収まる行の数（題名を含む）。これより多いと、文字を小さくして全部が見えるようにする。 */
+const MEMO_CAPACITY_LINES = 10.5;
+
+/** メモに書く行の数（題名・発着の行・条件・注意書き）。 */
+function lineCount(memo: TripMemo): number {
+  const header = 4 + (memo.departure.after ? 1 : 0) + (memo.arrivalDeadline ? 2 : 0);
+  return 1 + header + memo.conditions.length + 1;
+}
+
+/** 右上の条件メモ。机に置いた、罫線入りのメモ帳。条件が多いラウンドでは、文字を少し小さくする。 */
 export function MemoPad({ memo, concealed }: MemoPadProps) {
+  const scale = Math.min(1, MEMO_CAPACITY_LINES / lineCount(memo));
   return (
     <section className="memo-area" aria-labelledby="memo-title">
-      <article className="memo">
+      <article className="memo" style={{ '--memo-scale': scale } as CSSProperties}>
         <span className="memo__binding" aria-hidden="true" />
         <h2 className="memo__title" id="memo-title">
           条件メモ

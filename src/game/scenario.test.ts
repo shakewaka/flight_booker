@@ -73,6 +73,19 @@ describe('findScenarioProblems', () => {
     ]);
   });
 
+  it('予算の条件があれば、条件を満たす便を予算内で買える数も、全員分あるかを調べる', () => {
+    // 条件を満たすのは 09:10発（6席・サイト1 31,000円・2枚）と 11:05発（8席・サイト1 40,000円・2枚）。
+    // 予算 31,000円なら、09:10発のサイト1の2枚だけが予算内。
+    const tight = {
+      ...sampleRound,
+      requirements: { ...sampleRound.requirements, maxBudget: 31_000 },
+    };
+    expect(findScenarioProblems(tight, 2)).toEqual([]);
+    expect(findScenarioProblems(tight, 3)).toEqual([
+      '条件を満たす便を予算内で買える数が2枚で、参加者3人に足りない',
+    ]);
+  });
+
   it('条件を満たす便の座席がちょうど人数分なら問題なし、1人多いと足りない', () => {
     // 条件を満たす便は 6席 と 8席 の2便で、合計14席。
     expect(findScenarioProblems(sampleRound, 14)).toEqual([]);

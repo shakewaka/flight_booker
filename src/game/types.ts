@@ -63,6 +63,14 @@ export type TripRequirements = {
   arrivalTerminal?: number;
   /** 座ってよい席の位置。省略すると、席の条件なし。 */
   seatPositions?: SeatPosition[];
+  /** 予算。支払う金額（購入額）がこの金額以下。便ではなく、予約で決まる。 */
+  maxBudget?: Yen;
+  /** true なら直行便のみ。 */
+  nonstopOnly?: boolean;
+  /** 乗継してよい空港。乗継する場合は、これらの空港だけを経由する。直行便はよい。 */
+  allowedViaCodes?: string[];
+  /** 所要時間の上限（分）。この時間ちょうどは条件を満たす。 */
+  maxDurationMinutes?: number;
 };
 
 /** 席の位置。窓側・真ん中・通路側。 */

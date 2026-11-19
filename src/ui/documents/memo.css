@@ -35,7 +35,8 @@
   color: #1b2a55;
   font-family:
     'Klee One', Klee, 'UD Digi Kyokasho NK-R', 'UD デジタル 教科書体 NK-R', 'Yu Mincho', serif;
-  font-size: min(5cqw, 3.5cqh);
+  /* 条件が多いラウンドでは、--memo-scale（MemoPad.tsx）で文字と罫線を小さくし、全部が収まるようにする。 */
+  font-size: calc(min(5cqw, 3.5cqh) * var(--memo-scale, 1));
   line-height: 2em;
   transform: rotate(-1.4deg);
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sampleRound } from '../data/sampleRound';
 import type { BookingEntry } from './booking';
-import { createMarket, purchase, type MarketState } from './market';
+import { createMarket, placeHold, purchase, type MarketState } from './market';
 import { computeRoundResults, rankRows } from './results';
 import { createRoundTimer } from './roundClock';
 import { seatPosition } from './seatMap';
@@ -281,6 +281,40 @@ describe('computeRoundResults', () => {
     expect(rows[0].tripViolations).toEqual([]);
   });
 
+  it('予算を超える金額で買った予約は、正しい便でも条件違反として最高値で集計する', () => {
+    const budgetRound = {
+      ...sampleRound,
+      requirements: { ...sampleRound.requirements, maxBudget: 35_000 },
+    };
+    let market = createMarket(budgetRound, timer);
+    // 09:10発を、サイト2（41,000円）で買う人と、サイト1（31,000円）で買う人。
+    const held = placeHold(market, {
+      participantId: 'player',
+      flightId: 'HND-TSA-0910',
+      procedureId: 'player',
+      now: START,
+    });
+    if (!held.ok) throw new Error(held.reason);
+    market = buy(held.state, 'player', 'site2', 'HND-TSA-0910', 40_000);
+    market = buy(market, 'npc-1', 'site1', 'HND-TSA-0910', 90_000);
+    const rows = computeRoundResults({
+      participants: people,
+      market,
+      entries: [entryOf('HND-TSA-0910')],
+      scenario: budgetRound,
+      timeoutPenalty: 0,
+      penaltySettings,
+    });
+    const player = rows.find((r) => r.participant.id === 'player');
+    expect(player).toEqual(
+      expect.objectContaining({
+        purchasePrice: 41_000,
+        amount: budgetRound.maxPrice,
+        tripViolations: ['budget'],
+      }),
+    );
+    expect(rows[0].participant.id).toBe('npc-1');
+  });
   it('入力ミスがいくつ重なっても、正しい便の予約は時間切れの金額より悪くならず、未予約より上', () => {
     let market = createMarket(sampleRound, timer);
     market = buy(market, 'player', 'site1', 'HND-TSA-0910', 40_000);

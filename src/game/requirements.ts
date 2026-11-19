@@ -1,11 +1,11 @@
-import { airportName } from './airports';
+import { airportName, flightDurationMinutes } from './airports';
 import { formatJapaneseDate } from './dates';
 import { SEAT_POSITION_LABEL, seatPosition } from './seatMap';
-import type { Airline, Airport, Flight, TripMemo, TripRequirements } from './types';
+import type { Airline, Airport, Flight, TripMemo, TripRequirements, Yen } from './types';
 
 /**
  * 便が満たしていない旅行条件の種類。
- * 違反の軽重や減点は未決定のため、ここでは種類だけを返す。
+ * 違反の軽重や減点は src/game/penalty.ts で決める。ここでは種類だけを返す。
  */
 export type TripViolation =
   | 'origin'
@@ -16,8 +16,16 @@ export type TripViolation =
   | 'checkedBaggage'
   | 'operatingAirline'
   | 'arrivalTerminal'
+  /** 直行便のみの条件で、乗継がある。 */
+  | 'stops'
+  /** 乗継してよい空港以外で乗継する。 */
+  | 'via'
+  /** 所要時間が上限を超える。 */
+  | 'duration'
   /** 座席の位置。便ではなく、予約した席で決まる。 */
-  | 'seat';
+  | 'seat'
+  /** 予算を超える。便ではなく、支払った金額で決まる。 */
+  | 'budget';
 
 /** 席が、条件メモの席の条件を満たしているか。席の条件がなければ、どの席でもよい。 */
 export function seatMeetsRequirements(seatId: string, requirements: TripRequirements): boolean {
@@ -27,29 +35,40 @@ export function seatMeetsRequirements(seatId: string, requirements: TripRequirem
   );
 }
 
+/** 金額が予算に収まっているか。予算の条件がなければ、いくらでもよい。 */
+export function priceMeetsBudget(price: Yen, requirements: TripRequirements): boolean {
+  return requirements.maxBudget === undefined || price <= requirements.maxBudget;
+}
+
 /**
- * 予約の条件違反。便の条件違反に、予約した席の条件違反を足す。
- * 席が分からない（記録がない）ときは、便だけで判定する。
+ * 予約の条件違反。便の条件違反に、予約した席と支払った金額の条件違反を足す。
+ * 席や金額が分からない（記録がない）ときは、その条件は調べない。
  */
 export function findBookingViolations(
   flight: Flight,
-  seatId: string | undefined,
+  booking: { seatId?: string; price?: Yen },
   requirements: TripRequirements,
+  airports?: Airport[],
 ): TripViolation[] {
-  const violations = findTripViolations(flight, requirements);
-  if (seatId !== undefined && !seatMeetsRequirements(seatId, requirements)) {
+  const violations = findTripViolations(flight, requirements, airports);
+  if (booking.seatId !== undefined && !seatMeetsRequirements(booking.seatId, requirements)) {
     violations.push('seat');
+  }
+  if (booking.price !== undefined && !priceMeetsBudget(booking.price, requirements)) {
+    violations.push('budget');
   }
   return violations;
 }
 
 /**
  * 便が条件メモを満たしているかを調べる。空の配列なら、すべて満たしている。
- * 席の条件は便では決まらないので、ここでは調べない（findBookingViolations で調べる）。
+ * 席と予算の条件は便では決まらないので、ここでは調べない（findBookingViolations で調べる）。
+ * 所要時間の条件があるときは、時差の計算に空港の一覧（airports）が要る。
  */
 export function findTripViolations(
   flight: Flight,
   requirements: TripRequirements,
+  airports?: Airport[],
 ): TripViolation[] {
   const violations: TripViolation[] = [];
 
@@ -78,8 +97,28 @@ export function findTripViolations(
   ) {
     violations.push('arrivalTerminal');
   }
+  if (requirements.nonstopOnly && flight.stops > 0) violations.push('stops');
+  if (
+    requirements.allowedViaCodes !== undefined &&
+    (flight.via ?? []).some((code) => !requirements.allowedViaCodes?.includes(code))
+  ) {
+    violations.push('via');
+  }
+  if (requirements.maxDurationMinutes !== undefined) {
+    if (!airports) throw new Error('所要時間の条件を調べるには、空港の一覧が必要です');
+    if (flightDurationMinutes(airports, flight) > requirements.maxDurationMinutes) {
+      violations.push('duration');
+    }
+  }
 
   return violations;
+}
+
+/** 分を「5時間」「5時間30分」の形にする。 */
+function formatHours(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours}時間` : `${hours}時間${rest}分`;
 }
 
 /**
@@ -99,6 +138,18 @@ export function describeRequirements(
     requirements.arriveBy === undefined ? null : { date, time: requirements.arriveBy };
 
   const conditions: string[] = [];
+  if (requirements.maxBudget !== undefined) {
+    conditions.push(`予算は¥${requirements.maxBudget.toLocaleString('ja-JP')}まで`);
+  }
+  if (requirements.nonstopOnly) conditions.push('直行便のみ');
+  if (requirements.allowedViaCodes !== undefined) {
+    const names = requirements.allowedViaCodes.map((code) => airportName(airports, code));
+    // メモの1行に収まるよう、短く書く。直行便はよい。
+    conditions.push(`乗継は${names.join('か')}経由のみ`);
+  }
+  if (requirements.maxDurationMinutes !== undefined) {
+    conditions.push(`所要時間は${formatHours(requirements.maxDurationMinutes)}以内`);
+  }
   if (requirements.checkedBaggageKg > 0) {
     conditions.push(`受託手荷物 ${requirements.checkedBaggageKg}kg が必要`);
   }

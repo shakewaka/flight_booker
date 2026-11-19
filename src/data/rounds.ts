@@ -9,6 +9,7 @@ import { sampleRound } from './sampleRound';
 /**
  * ラウンド2：東京（羽田）→ソウル（金浦）。
  * 一番安く見える便ほど、出発時刻・運航会社・手荷物・到着期限のどれかが合わない。
+ * 予算があり、条件を満たす便でも、高いサイトで買うと予算を超える。
  */
 const round2 = buildRound({
   id: 'round-2',
@@ -35,8 +36,9 @@ const round2 = buildRound({
     arriveBy: '13:00',
     checkedBaggageKg: 23,
     excludedOperatingAirlineIds: ['B'],
-    arrivalTerminal: 2,
     seatPositions: ['window', 'aisle'],
+    // 予算。条件を満たす便でも、サイト2では超えることが多い。
+    maxBudget: 28_000,
   },
   flights: [
     // 安いが、08:00より前に出発する。
@@ -95,6 +97,7 @@ const round2 = buildRound({
 /**
  * ラウンド3：東京（成田）→香港。
  * 条件を満たす便のサイト1の販売枠が1枚ずつしかない。売り切れを見越してサイト2を選ぶか、入力を急ぐか。
+ * 乗継してよいのは台北（桃園）だけ。ほかの空港で乗継する安い便は、条件に合わない。
  */
 const round3 = buildRound({
   id: 'round-3',
@@ -117,15 +120,16 @@ const round3 = buildRound({
     originCode: 'NRT',
     destinationCode: 'HKG',
     departureDate: '2027-07-15',
-    departAfter: '10:00',
     arriveBy: '18:00',
     checkedBaggageKg: 20,
     excludedOperatingAirlineIds: ['A'],
     arrivalTerminal: 1,
     seatPositions: ['window'],
+    // 乗継する場合は、台北（桃園）経由だけ。
+    allowedViaCodes: ['TPE'],
   },
   flights: [
-    // 10:00より前に出発する。
+    // 早い時間の直行便。出発時刻の条件はないので、条件を満たす。
     flight(
       'NRT-HKG-0925',
       { from: 'NRT', to: 'HKG', date: '2027-07-15' },
@@ -181,6 +185,7 @@ const round3 = buildRound({
 /**
  * ラウンド4：東京（羽田）→台北（桃園）。
  * 条件を満たす2便の価格が近く、サイト3の閲覧人数しだいで順番が入れ替わる。到着が期限ちょうどの便もある。
+ * 直行便のみ。安い乗継便は、条件に合わない。
  */
 const round4 = buildRound({
   id: 'round-4',
@@ -205,10 +210,11 @@ const round4 = buildRound({
     departureDate: '2027-08-21',
     departAfter: '12:00',
     arriveBy: '20:30',
-    checkedBaggageKg: 15,
+    checkedBaggageKg: 0,
     excludedOperatingAirlineIds: ['D'],
     arrivalTerminal: 2,
     seatPositions: ['aisle'],
+    nonstopOnly: true,
   },
   flights: [
     // 12:00より前に出発する。
@@ -265,7 +271,25 @@ const round4 = buildRound({
 });
 
 /** 1試合で使う4ラウンド。ラウンド1は、企画書のラウンド例をもとにした出題。 */
+/**
+ * ラウンド1：東京（羽田）→台北（松山）。手で書いた便はテスト用のサンプルと同じで、条件だけを変える。
+ * 到着ターミナルの代わりに、所要時間の上限を入れる。安い乗継便は、所要時間で外れる。
+ */
+const round1: RoundScenario = {
+  ...sampleRound,
+  requirements: {
+    originCode: 'HND',
+    destinationCode: 'TSA',
+    departureDate: '2027-05-18',
+    departAfter: '09:00',
+    arriveBy: '17:00',
+    checkedBaggageKg: 20,
+    excludedOperatingAirlineIds: ['C'],
+    maxDurationMinutes: 300,
+  },
+};
+
 /** 試合で使う4ラウンド。手で書いた便に、自動生成の便を足す。 */
-export const matchRounds: RoundScenario[] = [sampleRound, round2, round3, round4].map((round) =>
+export const matchRounds: RoundScenario[] = [round1, round2, round3, round4].map((round) =>
   withGeneratedFlights(round),
 );

@@ -100,15 +100,17 @@ export function findInputMistakes(entry: BookingEntry, scenario: RoundScenario):
   return mistakes.sort((a, b) => order.indexOf(a.field) - order.indexOf(b.field));
 }
 
-/** 予約1件を判定する。席の条件は、購入した席（seatId）で調べる。 */
+/** 予約1件を判定する。席と予算の条件は、購入した席と購入額（booking）で調べる。 */
 export function judgeBooking(
   entry: BookingEntry,
   scenario: RoundScenario,
-  seatId?: string,
+  booking: { seatId?: string; price?: number } = {},
 ): BookingJudgement {
   const flight = scenario.flights.find((candidate) => candidate.id === entry.flightId);
   return {
     inputMistakes: findInputMistakes(entry, scenario),
-    tripViolations: flight ? findBookingViolations(flight, seatId, scenario.requirements) : [],
+    tripViolations: flight
+      ? findBookingViolations(flight, booking, scenario.requirements, scenario.airports)
+      : [],
   };
 }
