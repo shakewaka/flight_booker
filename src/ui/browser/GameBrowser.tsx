@@ -5,6 +5,7 @@ import { BookingPage } from '../sites/booking/BookingPage';
 import { ComparePage } from '../sites/compare/ComparePage';
 import { SITE_INFO } from '../sites/siteInfo';
 import { BrowserShell, type TabView } from './BrowserShell';
+import { pageUrl, parsePageUrl } from './pageUrl';
 import { createInitialTabs, tabsReducer, type TabPage } from './tabs';
 
 type GameBrowserProps = {
@@ -19,30 +20,27 @@ type GameBrowserProps = {
   searchRange: { min: number; max: number };
 };
 
-type PageStatus = { title: string; busy: boolean };
+/** ページから届く、タブの題名・検索中かどうか・今のURL。 */
+type PageStatus = { title: string; busy: boolean; url: string };
 
 const COMPARE_PAGE: TabPage = { kind: 'compare' };
 
-/** タブに最初に出す題名と、アドレスバーのゲーム内URL。 */
-function describePage(page: TabPage, scenario: RoundScenario): { title: string; url: string } {
-  if (page.kind === 'compare') {
-    return { title: '航空券比較サイト', url: 'https://compare.flight-game.invalid/' };
-  }
-  const info = SITE_INFO[page.site];
+/** タブに最初に出す題名。 */
+function pageTitle(page: TabPage, scenario: RoundScenario): string {
+  if (page.kind === 'compare') return '航空券比較サイト';
+  if (page.kind === 'not-found') return 'ページが見つかりません';
   const flight = scenario.flights.find((candidate) => candidate.id === page.flightId);
   const route = flight
     ? `${flight.originCode} → ${flight.destinationCode} ${flight.departureTime}`
     : '';
-  return {
-    title: `${info.name}｜${route}`,
-    url: `https://${info.host}/booking/${page.flightId.toLowerCase()}`,
-  };
+  return `${SITE_INFO[page.site].name}｜${route}`;
 }
 
 /**
  * ゲーム内ブラウザ。タブの並びと、タブごとのページを持つ。
  * 表示していないタブのページも描画したまま隠すので、入力・検索の進行・スクロール位置が残る。
  * 在庫と予約は、タブごとではなく、全タブで共有する市場（store）を通して扱う。
+ * アドレスバーにURLを入れると、そのタブでそのページを開く（比較サイトの検索結果のURLなら、検索し直す）。
  */
 export function GameBrowser({
   scenario,
@@ -58,12 +56,14 @@ export function GameBrowser({
   const [state, dispatch] = useReducer(tabsReducer, undefined, createInitialTabs);
   const [statuses, setStatuses] = useState<Record<string, PageStatus>>({});
 
-  // ページから届く、タブに出す題名と検索中かどうか。変わったときだけ更新する。
-  const reportStatus = useCallback((tabId: string, title: string, busy: boolean) => {
+  // ページから届く、タブに出す題名・検索中かどうか・URL。変わったときだけ更新する。
+  const reportStatus = useCallback((tabId: string, title: string, busy: boolean, url: string) => {
     setStatuses((previous) => {
       const current = previous[tabId];
-      if (current?.title === title && current.busy === busy) return previous;
-      return { ...previous, [tabId]: { title, busy } };
+      if (current?.title === title && current.busy === busy && current.url === url) {
+        return previous;
+      }
+      return { ...previous, [tabId]: { title, busy, url } };
     });
   }, []);
 
@@ -88,9 +88,21 @@ export function GameBrowser({
     );
   };
 
+  /** アドレスバーに入力したURLのページを、表示中のタブで開く。 */
+  const navigate = (input: string) => {
+    const id = state.activeId;
+    // 前のページが知らせた題名やURLは、新しいページでは使わない。
+    setStatuses((previous) => {
+      const rest = { ...previous };
+      delete rest[id];
+      return rest;
+    });
+    dispatch({ type: 'navigate', id, page: parsePageUrl(input, scenario) });
+  };
+
   const tabs: TabView[] = state.tabs.map((tab) => ({
     id: tab.id,
-    title: statuses[tab.id]?.title ?? describePage(tab.page, scenario).title,
+    title: statuses[tab.id]?.title ?? pageTitle(tab.page, scenario),
     busy: statuses[tab.id]?.busy ?? false,
   }));
   const activeTab = state.tabs.find((tab) => tab.id === state.activeId) ?? state.tabs[0];
@@ -102,14 +114,16 @@ export function GameBrowser({
       remainingMs={remainingMs}
       tabs={tabs}
       activeId={state.activeId}
-      url={describePage(activeTab.page, scenario).url}
+      url={statuses[activeTab.id]?.url ?? pageUrl(activeTab.page)}
       onActivate={(id) => dispatch({ type: 'activate', id })}
       onClose={(id) => dispatch({ type: 'close', id })}
       onOpen={() => dispatch({ type: 'open', page: COMPARE_PAGE })}
+      onNavigate={navigate}
     >
       {state.tabs.map((tab) => (
         <div
-          key={tab.id}
+          // アドレスバーから別のページを開いたら、ページを作り直す。
+          key={`${tab.id}-${tab.visit}`}
           id={`${tab.id}-panel`}
           className="browser__tab-page"
           role="tabpanel"
@@ -121,13 +135,14 @@ export function GameBrowser({
               tabId={tab.id}
               scenario={scenario}
               store={store}
+              initialQuery={tab.page.query}
               now={now}
               deadlineAt={deadlineAt}
               searchRange={searchRange}
               onStatusChange={reportStatus}
               onBook={openBooking}
             />
-          ) : (
+          ) : tab.page.kind === 'booking' ? (
             <BookingPage
               tabId={tab.id}
               site={tab.page.site}
@@ -137,6 +152,14 @@ export function GameBrowser({
               participantId={participantId}
               onBackToCompare={backToCompare}
             />
+          ) : (
+            <div className="browser__not-found">
+              <h1>このページは見つかりません</h1>
+              <p>
+                {tab.page.url}{' '}
+                は、ゲーム内のサイトにありません。比較サイトや予約サイトのURLを確かめてください。
+              </p>
+            </div>
           )}
         </div>
       ))}

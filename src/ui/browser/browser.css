@@ -183,6 +183,39 @@
   font-size: 13px;
 }
 
+.browser__url:focus-within {
+  outline: 2px solid #5b8def;
+  background: #fff;
+}
+
+.browser__url-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.browser__not-found {
+  max-width: 640px;
+  margin: 80px auto;
+  padding: 0 24px;
+  color: #3a4554;
+  line-height: 1.8;
+}
+
+.browser__not-found h1 {
+  font-size: 22px;
+}
+
+.browser__not-found p {
+  overflow-wrap: anywhere;
+}
+
 .browser__lock {
   width: 9px;
   height: 8px;

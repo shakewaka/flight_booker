@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { formatRemaining } from '../format';
 import './browser.css';
 
@@ -23,6 +23,8 @@ type BrowserShellProps = {
   onActivate: (id: string) => void;
   onClose: (id: string) => void;
   onOpen: () => void;
+  /** アドレスバーに入力したURLのページを開く。 */
+  onNavigate: (url: string) => void;
   /** タブごとのページ。表示していないページは hidden で隠しておく。 */
   children: ReactNode;
 };
@@ -30,6 +32,7 @@ type BrowserShellProps = {
 /**
  * ゲーム内ブラウザの枠。タブ列、アドレスバー、ラウンドと残り時間を表示する。
  * 戻る・進む・再読み込みのボタンは見た目だけで、押せる部品としては公開しない。
+ * アドレスバーはURLを書き換えられ、Enterでそのページを開く。
  */
 export function BrowserShell({
   roundNumber,
@@ -41,6 +44,7 @@ export function BrowserShell({
   onActivate,
   onClose,
   onOpen,
+  onNavigate,
   children,
 }: BrowserShellProps) {
   const timerClass =
@@ -112,11 +116,7 @@ export function BrowserShell({
         <span className="browser__nav" aria-hidden="true">
           ↻
         </span>
-        <span className="browser__url">
-          <span className="browser__lock" aria-hidden="true" />
-          <span className="visually-hidden">ゲーム内のアドレス：</span>
-          {url}
-        </span>
+        <AddressBar url={url} onNavigate={onNavigate} />
       </div>
 
       <div className="browser__status">
@@ -128,5 +128,47 @@ export function BrowserShell({
 
       <div className="browser__page">{children}</div>
     </div>
+  );
+}
+
+/**
+ * アドレスバー。表示中のタブのURLを出す。押すと全体を選んだ状態で書き換えられ、
+ * Enterでそのページを開く。Escか、欄から離れると、元のURLに戻す。
+ * ここだけは、URLのコピーと貼り付けができる（src/ui/blockClipboard.ts）。
+ */
+function AddressBar({ url, onNavigate }: { url: string; onNavigate: (url: string) => void }) {
+  /** 書き換え中の文字。書き換えていなければ null で、今のURLを出す。 */
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (draft !== null && draft.trim() !== '') onNavigate(draft);
+    setDraft(null);
+    event.currentTarget.querySelector('input')?.blur();
+  };
+
+  return (
+    <form className="browser__url" onSubmit={submit} role="search">
+      <span className="browser__lock" aria-hidden="true" />
+      <input
+        className="browser__url-input"
+        aria-label="ゲーム内のアドレス"
+        value={draft ?? url}
+        spellCheck={false}
+        autoComplete="off"
+        onFocus={(event) => {
+          setDraft(url);
+          event.currentTarget.select();
+        }}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => setDraft(null)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            setDraft(null);
+            event.currentTarget.blur();
+          }
+        }}
+      />
+    </form>
   );
 }

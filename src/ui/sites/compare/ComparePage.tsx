@@ -13,6 +13,7 @@ import { formatJapaneseDate } from '../../../game/dates';
 import type { RoundScenario, SiteId } from '../../../game/types';
 import { formatRemaining } from '../../format';
 import type { MarketStore } from '../../marketStore';
+import { compareUrl } from '../../browser/pageUrl';
 import { enterToNext } from '../../enterToNext';
 import { DateField } from './DateField';
 import { FlightCard } from './FlightCard';
@@ -29,8 +30,12 @@ type ComparePageProps = {
   /** 締切の時刻。検索結果の取得時刻を、残り時間で表すのに使う。 */
   deadlineAt: number;
   searchRange: { min: number; max: number };
-  /** タブに出す題名と、検索中かどうかを知らせる。 */
-  onStatusChange: (tabId: string, title: string, busy: boolean) => void;
+  /**
+   * アドレスバーのURLから開いたときの検索条件。あれば、開いた時点でその条件で検索する（再検索になる）。
+   */
+  initialQuery?: SearchQuery;
+  /** タブに出す題名・検索中かどうか・アドレスバーのURLを知らせる。 */
+  onStatusChange: (tabId: string, title: string, busy: boolean, url: string) => void;
   /** 予約サイトを新しいタブで開く。 */
   onBook: (site: SiteId, flightId: string) => void;
 };
@@ -67,20 +72,42 @@ const EMPTY_QUERY: SearchQuery = {
   checkedBaggageKg: 0,
 };
 
+function startSearch(
+  query: SearchQuery,
+  startedAt: number,
+  searchRange: { min: number; max: number },
+): RunningSearch {
+  return {
+    query,
+    startedAt,
+    durationMs: searchDurationMs(query, searchRange),
+    curve: createProgressCurve(queryHash(query)),
+    results: null,
+  };
+}
+
 /** 航空券比較サイト。条件を入れて検索し、候補と予約サイトごとの価格を見る。 */
 export function ComparePage({
   tabId,
   scenario,
   store,
+  initialQuery,
   now,
   deadlineAt,
   searchRange,
   onStatusChange,
   onBook,
 }: ComparePageProps) {
-  const [draft, setDraft] = useState<SearchQuery>(EMPTY_QUERY);
-  const [search, setSearch] = useState<RunningSearch | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<SearchQuery>(initialQuery ?? EMPTY_QUERY);
+  // URLから開いたときは、その条件ですぐに検索する。条件が足りなければ、理由を出して待つ。
+  const [search, setSearch] = useState<RunningSearch | null>(() =>
+    initialQuery && !findQueryError(initialQuery)
+      ? startSearch(initialQuery, now, searchRange)
+      : null,
+  );
+  const [formError, setFormError] = useState<string | null>(() =>
+    initialQuery ? findQueryError(initialQuery) : null,
+  );
 
   // タブの題名は、検索した区間にする。検索中はタブのアイコンを回す。
   const title = search
@@ -89,9 +116,11 @@ export function ComparePage({
   const busy =
     search !== null &&
     getSearchProgress(search.startedAt, search.durationMs, now).kind === 'searching';
+  // 検索すると、アドレスバーのURLが検索条件入りのURLに変わる。
+  const url = compareUrl(search?.query ?? initialQuery);
   useEffect(() => {
-    onStatusChange(tabId, title, busy);
-  }, [onStatusChange, tabId, title, busy]);
+    onStatusChange(tabId, title, busy, url);
+  }, [onStatusChange, tabId, title, busy, url]);
 
   // 検索が終わったら、その時点の市場から結果を作って残す（描画中に状態を直す React の書き方）。
   if (search !== null && !busy && search.results === null) {
@@ -109,13 +138,7 @@ export function ComparePage({
     const error = findQueryError(draft);
     setFormError(error);
     if (error) return;
-    setSearch({
-      query: draft,
-      startedAt: performance.now(),
-      durationMs: searchDurationMs(draft, searchRange),
-      curve: createProgressCurve(queryHash(draft)),
-      results: null,
-    });
+    setSearch(startSearch(draft, performance.now(), searchRange));
   };
 
   return (

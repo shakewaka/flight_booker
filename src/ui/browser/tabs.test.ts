@@ -13,10 +13,36 @@ const four = run([
   { type: 'open', page: { kind: 'compare' } },
 ]);
 
+describe('アドレスバーからの移動（navigate）', () => {
+  const query = {
+    originCode: 'HND',
+    destinationCode: 'TSA',
+    departureDate: '2027-05-18',
+    arrivalDate: '2027-05-18',
+    nonstopOnly: false,
+    checkedBaggageKg: 20,
+  };
+
+  it('そのタブのページだけを入れ替え、作り直すための番号を増やす', () => {
+    const state = run([{ type: 'navigate', id: 'tab-2', page: { kind: 'compare', query } }], four);
+    expect(state.tabs[1]).toEqual({ id: 'tab-2', page: { kind: 'compare', query }, visit: 1 });
+    expect(state.tabs.filter((tab) => tab.visit > 0)).toHaveLength(1);
+    // 表示するタブとタブの並びは変えない。
+    expect(state.activeId).toBe('tab-4');
+    expect(ids(state)).toEqual(ids(four));
+  });
+
+  it('ないタブを指定しても、何も変わらない', () => {
+    expect(tabsReducer(four, { type: 'navigate', id: 'tab-9', page: { kind: 'compare' } })).toBe(
+      four,
+    );
+  });
+});
+
 describe('tabsReducer', () => {
   it('最初は比較サイトのタブが1つだけ開いている', () => {
     const state = createInitialTabs();
-    expect(state.tabs).toEqual([{ id: 'tab-1', page: { kind: 'compare' } }]);
+    expect(state.tabs).toEqual([{ id: 'tab-1', page: { kind: 'compare' }, visit: 0 }]);
     expect(state.activeId).toBe('tab-1');
   });
 
@@ -78,6 +104,7 @@ describe('tabsReducer', () => {
     expect(state.tabs.at(-1)).toEqual({
       id: 'tab-5',
       page: { kind: 'booking', site: 'site2', flightId: 'HND-TSA-0910' },
+      visit: 0,
     });
     expect(state.activeId).toBe('tab-5');
   });
