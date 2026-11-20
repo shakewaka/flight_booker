@@ -61,17 +61,17 @@ npm run dev
 
 ## 開発資料
 
-| 資料                                                                 | 内容                                 |
-| -------------------------------------------------------------------- | ------------------------------------ |
-| [企画書](docs/flight-booker-game-proposal.md)                        | ゲームの基本仕様と仮案               |
-| [画面配置図](docs/flight-booker-screen-layout.svg)                   | 左80%の架空PCと右20%の資料           |
-| [決定事項と検討事項](docs/decisions.md)                              | 確定した仕様、仮の値、未決定の項目   |
-| [設計](docs/architecture.md)                                         | 技術構成、フォルダーと状態管理の方針 |
-| [実装順序](docs/roadmap.md)                                          | 最初に遊べる版までの作業の分け方     |
-| [環境構築](docs/getting-started.md)                                  | 起動方法、確認方法、困ったときの対処 |
-| [作業手順](docs/workflow.md)                                         | ブランチ、コミット、PRの進め方       |
-| [AGENTS.md](AGENTS.md)                                               | AIエージェントと作業するときのルール |
+| 資料                                               | 内容                                 |
+| -------------------------------------------------- | ------------------------------------ |
+| [企画書](docs/flight-booker-game-proposal.md)      | ゲームの基本仕様と仮案               |
+| [画面配置図](docs/flight-booker-screen-layout.svg) | 左80%の架空PCと右20%の資料           |
+| [決定事項と検討事項](docs/decisions.md)            | 確定した仕様、仮の値、未決定の項目   |
+| [設計](docs/architecture.md)                       | 技術構成、フォルダーと状態管理の方針 |
+| [実装順序](docs/roadmap.md)                        | 最初に遊べる版までの作業の分け方     |
+| [環境構築](docs/getting-started.md)                | 起動方法、確認方法、困ったときの対処 |
+| [作業手順](docs/workflow.md)                       | ブランチ、コミット、PRの進め方       |
+| [AGENTS.md](AGENTS.md)                             | AIエージェントと作業するときのルール |
 
 ## ライセンス
 
-ライセンスは未設定です。公開するときに決めます。
+[MITライセンス](LICENSE)で公開しています。

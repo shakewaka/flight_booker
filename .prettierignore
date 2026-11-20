@@ -3,6 +3,6 @@ dist/
 coverage/
 package-lock.json
 
-# 企画・調査の原資料は、開発ファイルの自動整形対象に含めない。
+# 企画の原資料は、開発ファイルの自動整形対象に含めない。
 docs/flight-booker-game-proposal.md
 docs/flight-booker-screen-layout.svg
