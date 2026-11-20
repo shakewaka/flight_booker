@@ -9,6 +9,7 @@ import {
 } from '../../../game/booking';
 import { formatJapaneseDate } from '../../../game/dates';
 import { findFlight, freeSeats, site3FareRaised, type MarketRefusal } from '../../../game/market';
+import { findSnatch, type Snatch } from '../../../game/rivals';
 import { SEAT_POSITION_LABEL, seatPosition } from '../../../game/seatMap';
 import type { RoundScenario, SiteId } from '../../../game/types';
 import { formatStops, formatYen } from '../../format';
@@ -17,6 +18,7 @@ import { SITE_INFO } from '../siteInfo';
 import { enterToNext } from '../../enterToNext';
 import { formatInput, type InputFormat } from './inputFormat';
 import { SeatPicker } from './SeatPicker';
+import { SnatchNote } from './SnatchNote';
 import './booking.css';
 
 type BookingPageProps = {
@@ -114,6 +116,8 @@ export function BookingPage({
   const [resumeStep, setResumeStep] = useState<Step | null>(null);
   /** サイト1で、最安料金のチケットが売り切れたことを知らせるポップアップ。 */
   const [soldOutNotice, setSoldOutNotice] = useState(false);
+  /** 断られたときに、席や販売枠を先に取った人。 */
+  const [snatch, setSnatch] = useState<Snatch | null>(null);
 
   const info = SITE_INFO[site];
   const flight = findFlight(scenario, market, flightId);
@@ -140,11 +144,25 @@ export function BookingPage({
   const shownSeat = hold?.seatId ?? (seat === AUTO_SEAT ? null : seat);
   const requestedSeat = seat === AUTO_SEAT || seat === null ? undefined : seat;
 
-  /** 市場に断られたとき。席だけが埋まったなら、入力を残したまま座席の画面へ戻す。 */
+  const nameOf = (id: string) => store.participants.find((p) => p.id === id)?.name ?? id;
+
+  /**
+   * 市場に断られたとき。席だけが埋まったなら、入力を残したまま座席の画面へ戻す。
+   * 席や販売枠を先に取った人がいれば、誰が何秒前に取ったかも出す。
+   */
   const handleRefusal = (reason: MarketRefusal, from: Step) => {
+    setSnatch(
+      findSnatch(store.getSnapshot().market, {
+        refusal: reason,
+        participantId,
+        flightId,
+        seatId: requestedSeat,
+        now: performance.now(),
+      }),
+    );
     if (reason === 'seat-taken' || reason === 'unknown-seat') {
       setMessage(
-        `選んだ席（${seat}）は、ほかの人が先に予約しました。別の席を選んでください。入力した内容は残っています。`,
+        `選んだ席（${seat}）は、先に埋まりました。別の席を選んでください。入力した内容は残っています。`,
       );
       setSeat(null);
       setResumeStep(from);
@@ -162,6 +180,7 @@ export function BookingPage({
   const chooseSeat = (next: string) => {
     setSeat(next);
     setMessage(null);
+    setSnatch(null);
     setStep(resumeStep ?? 'passenger');
     setResumeStep(null);
   };
@@ -292,6 +311,7 @@ export function BookingPage({
       {refusal ? (
         <div className="booking__refusal" role="alert">
           <p>{REFUSAL_TEXT[refusal]}</p>
+          {snatch && <SnatchNote snatch={snatch} nameOf={nameOf} />}
           <div className="booking__actions">
             <button type="button" className="booking__primary" onClick={onBackToCompare}>
               比較サイトで探し直す
@@ -335,11 +355,15 @@ export function BookingPage({
           {message && (
             <p className="booking__message" role="alert">
               {message}
+              {snatch && <SnatchNote snatch={snatch} nameOf={nameOf} />}
             </p>
           )}
           <SeatPicker
             openSeats={market.seats[flightId] ?? []}
             freeSeats={freeSeats(market, flightId)}
+            heldSeats={market.holds
+              .filter((h) => h.flightId === flightId && h.participantId !== participantId)
+              .map((h) => h.seatId)}
             selected={seat}
             onSelect={chooseSeat}
           />
@@ -429,6 +453,7 @@ export function BookingPage({
               この料金（{formatYen(price)}）のチケットは売り切れました。
               別の便や、別の予約サイトを探してください。
             </p>
+            {snatch && <SnatchNote snatch={snatch} nameOf={nameOf} />}
             <div className="booking__actions">
               <button type="button" onClick={() => setSoldOutNotice(false)}>
                 閉じる
