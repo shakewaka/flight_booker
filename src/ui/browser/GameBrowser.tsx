@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useState } from 'react';
 import type { RoundScenario, SiteId } from '../../game/types';
-import { findFlight, type MarketState } from '../../game/market';
+import { findFlight, purchasesUntilClose, type MarketState } from '../../game/market';
 import { useMarketSnapshot, type MarketStore } from '../marketStore';
 import { BookingPage } from '../sites/booking/BookingPage';
 import { ComparePage } from '../sites/compare/ComparePage';
@@ -118,6 +118,11 @@ export function GameBrowser({
       roundNumber={roundNumber}
       roundCount={roundCount}
       remainingMs={remainingMs}
+      progress={{
+        booked: market.purchases.length,
+        participantCount: store.participants.length,
+        untilClose: purchasesUntilClose(market),
+      }}
       tabs={tabs}
       activeId={state.activeId}
       url={statuses[activeTab.id]?.url ?? pageUrl(activeTab.page)}

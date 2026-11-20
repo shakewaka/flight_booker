@@ -4,6 +4,16 @@ import './browser.css';
 
 /** 残り時間がこれ以下になったら、時計を赤くする。 */
 const WARNING_MS = 30_000;
+/** 締切まであと何人で締め切るかが、この人数以下になったら赤くする。 */
+const WARNING_PEOPLE = 2;
+
+/** 参加者のうち何人が予約したかと、あと何人の予約で締め切るか。 */
+export type BookingProgress = {
+  booked: number;
+  participantCount: number;
+  /** あと何人が予約すると締め切るか。早めに締め切らないなら null。 */
+  untilClose: number | null;
+};
 
 export type TabView = {
   id: string;
@@ -16,6 +26,7 @@ type BrowserShellProps = {
   roundNumber: number;
   roundCount: number;
   remainingMs: number;
+  progress: BookingProgress;
   tabs: TabView[];
   activeId: string;
   /** 表示中のタブのゲーム内URL。 */
@@ -30,7 +41,7 @@ type BrowserShellProps = {
 };
 
 /**
- * ゲーム内ブラウザの枠。タブ列、アドレスバー、ラウンドと残り時間を表示する。
+ * ゲーム内ブラウザの枠。タブ列、アドレスバー、ラウンド・予約済みの人数・残り時間を表示する。
  * 戻る・進む・再読み込みのボタンは見た目だけで、押せる部品としては公開しない。
  * アドレスバーはURLを書き換えられ、Enterでそのページを開く。
  */
@@ -38,6 +49,7 @@ export function BrowserShell({
   roundNumber,
   roundCount,
   remainingMs,
+  progress,
   tabs,
   activeId,
   url,
@@ -50,6 +62,7 @@ export function BrowserShell({
   const timerClass =
     remainingMs <= WARNING_MS ? 'browser__timer browser__timer--warning' : 'browser__timer';
   const closable = tabs.length > 1;
+  const closingSoon = progress.untilClose !== null && progress.untilClose <= WARNING_PEOPLE;
 
   return (
     <div className="browser">
@@ -122,6 +135,16 @@ export function BrowserShell({
       <div className="browser__status">
         <span>
           ROUND {roundNumber} / {roundCount}
+        </span>
+        {/* 他の人が予約するたびに数字が動き、締切が近づいているのが分かる。 */}
+        <span
+          className={
+            closingSoon ? 'browser__progress browser__progress--warning' : 'browser__progress'
+          }
+        >
+          予約済み {progress.booked} / {progress.participantCount}人
+          {progress.untilClose !== null &&
+            (progress.untilClose > 0 ? `・あと${progress.untilClose}人で締切` : '・締切')}
         </span>
         <span className={timerClass}>残り {formatRemaining(remainingMs)}</span>
       </div>
