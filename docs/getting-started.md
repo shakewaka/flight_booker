@@ -64,6 +64,8 @@ npm run preview
 
 標準のURLは <http://127.0.0.1:4173> です。ローカルでの確認で、インターネットへは公開されません。
 
+公開は Vercel が行います。`main`に取り込むと <https://flight-booker-seven.vercel.app/> が更新され、PRを作るとそのPR用のお試しURLがPRに表示されます。
+
 ## ライブラリを追加・更新する
 
 ```bash
